@@ -38,10 +38,26 @@ def get_tot_areas(dbf_file_name):
     return get_value_by_id(dbf_file_name, 'AREA')
 
 
+def get_strahler(dbf_file_name):
+    """Returns a dict with catchment ids as keys and strahler as values."""
+    return get_value_by_id(dbf_file_name, 'STRAHLER')
+
+
 def get_appl_areas(dbf_file_name):
     """Returns a dict with catchment ids as keys and maiz areas as values."""
     return get_value_by_id(dbf_file_name, 'LMAIZ')
 
+
+def filter_strahler_lessthan_three(strahler, tot_areas, appl_areas):
+    """Use only catchments where STRAHLER is <= 3.
+    """
+
+    def apply_filter(old_values):
+        return {id_: value for id_, value in old_values.items() if id_ in ids}
+
+    ids = {id_ for id_, value in strahler.items() if value <= 3}
+    return (apply_filter(strahler), apply_filter(tot_areas),
+            apply_filter(appl_areas))
 
 class Parameters(tables.IsDescription):
     """Table layout for parameters."""
@@ -58,14 +74,41 @@ class Input(tables.IsDescription):
     discharge = tables.Float64Col()
 
 
+def create_hdf_file(file_name, tot_areas, appl_areas):
+    """Create HDF5 file and add areas as parameters."""
+    ids = sorted(tot_areas.keys())
+    assert ids == sorted(appl_areas.keys())
+    h5_file = tables.open_file(file_name, mode='w',
+                                title='Input data for catchment models.')
+    for id_ in ids:
+        group = h5_file.create_group('/', 'catch_{}'.format(id_), 'catchment {}'.format(id_))
+        table = h5_file.create_table(group, 'parameters', Parameters,
+                                     'constant parameters')
+        row = table.row
+        row['name'] = 'A_tot'
+        row['value'] = tot_areas[id_]
+        row['unit'] = 'm**2'
+        row.append()
+        row['name'] = 'A_appl'
+        row['value'] = appl_areas[id_]
+        row['unit'] = 'm**2'
+        row.append()
+    h5_file.close()
+
 
 def preprocess(config_file):
     config = read_config(config_file)
+    strahler = get_strahler(config['preprocessing']['catchment_path'])
     tot_areas = get_tot_areas(config['preprocessing']['catchment_path'])
     appl_areas = get_appl_areas(config['preprocessing']['landuse_path'])
-    print(len(tot_areas))
-    print(len(appl_areas))
-    assert sorted(tot_areas.keys()) == sorted(appl_areas.keys())
+    strahler, tot_areas, appl_areas = filter_strahler_lessthan_three(
+        strahler, tot_areas, appl_areas)
+    print(len(strahler))
+    create_hdf_file(config['preprocessing']['hdf_input_path'],
+                    tot_areas, appl_areas)
+    #print(len(tot_areas))
+    #print(len(appl_areas))
+    #
 
 
 
