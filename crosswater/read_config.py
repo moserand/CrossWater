@@ -4,7 +4,7 @@
 """
 
 import configparser
-from pathlib import Path
+import os
 
 
 def get_file_content(file_name):
@@ -24,11 +24,12 @@ def read_config(file_name_or_fobj):
         config.read(file_name_or_fobj)
     else:
         config.read_string(file_name_or_fobj.read())
-    base_path = Path().absolute().cwd()
+    base_path = os.getcwd()
 
     preprocessing = dict(config['preprocessing'].items())
     for key, value in preprocessing.items():
-        if key.endswith('_path') and not Path(value).is_absolute():
-            preprocessing[key] = str((base_path / Path(value)).resolve())
+        if key.endswith('_path') and not os.path.isabs(value):
+            preprocessing[key] = os.path.normpath(os.path.join(base_path,
+                                                               value))
     return {'preprocessing': preprocessing}
 
