@@ -103,9 +103,16 @@ def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name):
     reader = CsvReader(t_file_name, p_file_name, q_file_name)
     table_name = 'input'
     counter = 0
+    total = 365 * 24
+    start = timeit.default_timer()
+    fraction = 0
     for catchments in reader:
+        duration = timeit.default_timer() - start
+        total_time = duration * fraction
         counter += 1
-        print(counter)
+        fraction = total / counter
+        print(counter, 'total:', total_time,
+              'elapsed', duration, 'remaining', total_time - duration)
         for group in h5_file.walk_nodes('/', 'Group'):
             name = group._v_name
             if name.startswith('catch_'):
