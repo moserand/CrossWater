@@ -83,7 +83,8 @@ def create_hdf_file(file_name, tot_areas, appl_areas):
     h5_file = tables.open_file(file_name, mode='w',
                                 title='Input data for catchment models.')
     for id_ in ids:
-        group = h5_file.create_group('/', 'catch_{}'.format(id_), 'catchment {}'.format(id_))
+        group = h5_file.create_group('/', 'catch_{}'.format(id_),
+                                     'catchment {}'.format(id_))
         table = h5_file.create_table(group, 'parameters', Parameters,
                                      'constant parameters')
         row = table.row
@@ -98,35 +99,50 @@ def create_hdf_file(file_name, tot_areas, appl_areas):
     h5_file.close()
 
 
-def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name):
+def add_input_tables_batched(h5_file_name, t_file_name, p_file_name,
+                             q_file_name, batch_size=2000, total=365*24):
+    """Add input in batches of ids.
+    """
     h5_file = tables.open_file(h5_file_name, mode='a')
-    reader = CsvReader(t_file_name, p_file_name, q_file_name)
     table_name = 'input'
+    all_ids = []
+    for group in h5_file.walk_nodes('/', 'Group'):
+        name = group._v_name
+        if name.startswith('catch_'):
+            id_ = int(name.split('_')[1])
+            all_ids.append(id_)
+    all_ids.sort()
+    print('data')
     counter = 0
-    total = 365 * 24
-    start = timeit.default_timer()
-    fraction = 0
-    for catchments in reader:
-        duration = timeit.default_timer() - start
-        total_time = duration * fraction
-        counter += 1
-        fraction = total / counter
-        print(counter, 'total:', total_time,
-              'elapsed', duration, 'remaining', total_time - duration)
-        for group in h5_file.walk_nodes('/', 'Group'):
-            name = group._v_name
-            if name.startswith('catch_'):
-                id_ = int(name.split('_')[1])
-                row_data = catchments[id_]
-                try:
-                    table = group._f_get_child(table_name)
-                except tables.NoSuchNodeError:
-                    table = h5_file.create_table(group, table_name, Input,
-                                               'time varying inputs')
-                row = table.row
+    batch_counter = 0
+    fraction = batch_size / len(all_ids)
+    while all_ids:
+        reader = CsvReader(t_file_name, p_file_name, q_file_name)
+        batch_counter += 1
+        data = {}
+        ids = all_ids[-batch_size:]
+        all_ids = all_ids[:-batch_size]
+        for catchments in reader:
+            counter += 1
+            print('{:2d} {:7d}{:7.2f} % '.format(batch_counter,
+                                             counter,
+                                             counter * fraction / total * 100,
+                                             ),
+                  end= '\r')
+            for id_ in ids:
+                data.setdefault(id_, []).append(catchments[id_])
+        print('\nhdf5')
+        get_child = h5_file.root._f_get_child
+        for id_ in ids:
+            name = 'catch_{}'.format(id_)
+            group = get_child(name)
+            table = h5_file.create_table(group, table_name, Input,
+                                           'time varying inputs')
+            row = table.row
+            for data_row in data[id_]:
                 row_names = ['datetime', 'temperature', 'precipitation',
                              'discharge']
-                for row_name, row_value in zip(row_names, row_data):
+                for row_name, row_value in zip(row_names, data_row):
                     row[row_name] = row_value
                 row.append()
     h5_file.close()
@@ -147,10 +163,8 @@ def preprocess(config_file):
     strahler, tot_areas, appl_areas = filter_strahler_lessthan_three(
         strahler, tot_areas, appl_areas)
     create_hdf_file(h5_file_name, tot_areas, appl_areas)
-    add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name)
-
-
-
+    add_input_tables_batched(h5_file_name, t_file_name, p_file_name,
+                              q_file_name)
 
 
 if __name__ == '__main__':
