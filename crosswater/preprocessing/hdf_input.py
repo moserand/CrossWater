@@ -137,9 +137,9 @@ def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name):
 def preprocess(config_file):
     config = read_config(config_file)
     h5_file_name = config['preprocessing']['hdf_input_path']
-    t_file_name = config['preprocessing']['discharge_path']
-    p_file_name = config['preprocessing']['temperature_path']
-    q_file_name = config['preprocessing']['precipitation_path']
+    t_file_name = config['preprocessing']['temperature_path']
+    p_file_name = config['preprocessing']['precipitation_path']
+    q_file_name = config['preprocessing']['discharge_path']
 
     strahler = get_strahler(config['preprocessing']['catchment_path'])
     tot_areas = get_tot_areas(config['preprocessing']['catchment_path'])
