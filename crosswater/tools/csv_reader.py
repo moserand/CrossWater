@@ -94,8 +94,12 @@ class CsvReader(object):
         for index, line in enumerate(lines):
             if not self.read_next[index]:
                 continue
-            date, value = self._process_line(line, self.all_ids[index],
-                                             self.time_converters[index])
+            try:
+                date, value = self._process_line(line, self.all_ids[index],
+                                                 self.time_converters[index])
+            except ValueError:
+                print('index', index)
+                raise
             dates[index] = date
             values[index] = value
         res = {}
