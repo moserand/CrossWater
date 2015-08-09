@@ -7,13 +7,15 @@ import configparser
 import os
 
 
-def get_file_content(file_name):
-    with open(file_name) as fobj:
-        try:
-            return fobj.read()
-        except UnicodeDecodeError:
-            print(file_name)
-            raise
+def make_abs_paths(config, section_name):
+    """Make all paths absoulte and turn section into dict.
+    """
+    sec_dict = dict(config[section_name].items())
+    base_path = os.getcwd()
+    for key, value in sec_dict.items():
+        if key.endswith('_path') and not os.path.isabs(value):
+            sec_dict[key] = os.path.normpath(os.path.join(base_path, value))
+    return sec_dict
 
 
 def read_config(file_name_or_fobj):
@@ -24,12 +26,6 @@ def read_config(file_name_or_fobj):
         config.read(file_name_or_fobj)
     else:
         config.read_string(file_name_or_fobj.read())
-    base_path = os.getcwd()
-
-    preprocessing = dict(config['preprocessing'].items())
-    for key, value in preprocessing.items():
-        if key.endswith('_path') and not os.path.isabs(value):
-            preprocessing[key] = os.path.normpath(os.path.join(base_path,
-                                                               value))
-    return {'preprocessing': preprocessing}
-
+    res = {sec_name: make_abs_paths(config, sec_name) for
+           sec_name in config.sections()}
+    return res
