@@ -103,6 +103,7 @@ def add_input_tables_batched(h5_file_name, t_file_name, p_file_name,
                              q_file_name, batch_size=2000, total=365*24):
     """Add input in batches of ids.
     """
+    filters = tables.Filters(complevel=5, complib='zlib')
     h5_file = tables.open_file(h5_file_name, mode='a')
     table_name = 'input'
     all_ids = []
@@ -137,7 +138,8 @@ def add_input_tables_batched(h5_file_name, t_file_name, p_file_name,
             name = 'catch_{}'.format(id_)
             group = get_child(name)
             table = h5_file.create_table(group, table_name, Input,
-                                           'time varying inputs')
+                                         'time varying inputs',
+                                         filters=filters)
             row = table.row
             for data_row in data[id_]:
                 row_names = ['datetime', 'temperature', 'precipitation',
