@@ -57,6 +57,8 @@ class CsvReader(object):
                 enumerate(header)}
 
     def _find_time_steps(self, fobj):
+        """Find out if we are on a daily or hourly time step.
+        """
         next(fobj)
         line = next(fobj)
         fobj.seek(0)
