@@ -8,6 +8,7 @@ import random
 import shutil
 import subprocess
 import time
+from timeit import default_timer
 from threading import Thread
 
 import tables
@@ -94,11 +95,16 @@ class ModelRunner(object):
     def run_all(self):
         """Run all models.
         """
+
         with ChDir(str(self.tmp_path)):
-            all_ids = iter(find_ids(self.hdf_input))
+            start = default_timer()
+            all_ids = find_ids(self.hdf_input)
+            nids = len(all_ids)
+            all_ids = iter(all_ids)
             free_paths = self.worker_paths[:]
             active_workers = {}
             done = False
+            counter = 0
             while True:
                 for path in free_paths:
                     try:
@@ -106,7 +112,13 @@ class ModelRunner(object):
                     except StopIteration:
                         done = True
                         break
-                    print(id_)
+                    counter += 1
+                    duration = default_timer() - start
+                    fraction = counter / nids
+                    total_time = duration / fraction
+                    print('{:7} {:7d} {:5.1f} {:5.1f} {:6.2f} % '.format(
+                        id_, counter, duration, total_time,
+                        fraction * 100), end='\r')
                     parameters, inputs = self._read_parameters_inputs(id_)
                     worker = Worker(id_, path, parameters, inputs,
                                     self.layout_xml_path,
@@ -121,6 +133,7 @@ class ModelRunner(object):
                         free_paths.append(path)
             for worker in active_workers.values():
                 worker.join()
+        print()
 
 
 class Worker(Thread):
@@ -133,7 +146,6 @@ class Worker(Thread):
         self.path = path
         self.parameters = parameters
         self.inputs = inputs
-        self.done = False
         self.layout_xml_path = layout_xml_path
         self.layout_name_template = layout_name_template
         self.input_txt_name = str(self.path / 'input.txt')
@@ -189,6 +201,4 @@ class Worker(Thread):
         """
         self._make_input()
         self._execute()
-        time.sleep(random.random())
-        self.done = True
 
