@@ -76,10 +76,13 @@ class Input(tables.IsDescription):
     discharge = tables.Float64Col()
 
 
-def create_hdf_file(file_name, tot_areas, appl_areas):
+def create_hdf_file(file_name, tot_areas, appl_areas, skip_missing_ids=False,
+                    ids=None):
     """Create HDF5 file and add areas as parameters."""
-    ids = sorted(tot_areas.keys())
-    assert ids == sorted(appl_areas.keys())
+    if not ids:
+        skip_missing_ids = False
+        ids = sorted(tot_areas.keys())
+        assert ids == sorted(appl_areas.keys())
     h5_file = tables.open_file(file_name, mode='w',
                                 title='Input data for catchment models.')
     for id_ in ids:
@@ -87,13 +90,19 @@ def create_hdf_file(file_name, tot_areas, appl_areas):
                                      'catchment {}'.format(id_))
         table = h5_file.create_table(group, 'parameters', Parameters,
                                      'constant parameters')
+        try:
+            tot_area = tot_areas[id_]
+            appl_area = appl_areas[id_]
+        except KeyError:
+            if not skip_missing_ids:
+                raise
         row = table.row
         row['name'] = 'A_tot'
-        row['value'] = tot_areas[id_]
+        row['value'] = tot_area
         row['unit'] = 'm**2'
         row.append()
         row['name'] = 'A_appl'
-        row['value'] = appl_areas[id_]
+        row['value'] = appl_area
         row['unit'] = 'm**2'
         row.append()
     h5_file.close()
