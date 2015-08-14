@@ -1,9 +1,17 @@
 # coding: utf-8
 
+"""Generate HDF5 file with all catchment model input data.
+
+Source are DBF and some large text files.
+"""
+
+import sys
+
+import numpy
+import pandas
 import tables
 
 from crosswater.read_config import read_config
-from crosswater.tools.csv_reader import CsvReader
 from crosswater.tools import dbflib
 
 
@@ -30,8 +38,7 @@ def get_value_by_id(dbf_file_name, col_name):
     """Returns a dict catchment-id: value
     """
     data = read_dbf_cols(dbf_file_name, ['WSO1_ID', col_name])
-    return {id_: value for id_, value in zip(data['WSO1_ID'],
-                                                   data[col_name])}
+    return {id_: value for id_, value in zip(data['WSO1_ID'], data[col_name])}
 
 
 def get_tot_areas(dbf_file_name):
@@ -54,6 +61,8 @@ def filter_strahler_lessthan_three(strahler, tot_areas, appl_areas):
     """
 
     def apply_filter(old_values):
+        """Filter for ids.
+        """
         return {id_: value for id_, value in old_values.items() if id_ in ids}
 
     ids = {id_ for id_, value in strahler.items() if value <= 3}
@@ -61,19 +70,25 @@ def filter_strahler_lessthan_three(strahler, tot_areas, appl_areas):
             apply_filter(appl_areas))
 
 
+def find_ids(h5_file):
+    """Returns IDs from the group names.
+    """
+    ids = []
+    for group in h5_file.walk_nodes('/', 'Group'):
+        name = group._v_name  # pylint: disable=protected-access
+        if name.startswith('catch_'):
+            id_ = name.split('_')[1]
+            ids.append(id_)
+    ids.sort()
+    return ids
+
+
 class Parameters(tables.IsDescription):
+    # pylint: disable=too-few-public-methods
     """Table layout for parameters."""
     name = tables.StringCol(100)
     value = tables.Float64Col()
     unit = tables.StringCol(20)
-
-
-class Input(tables.IsDescription):
-    """Table layout for time dependent input."""
-    datetime = tables.Time64Col()
-    temperature = tables.Float64Col()
-    precipitation = tables.Float64Col()
-    discharge = tables.Float64Col()
 
 
 def create_hdf_file(file_name, tot_areas, appl_areas, skip_missing_ids=False,
@@ -84,7 +99,7 @@ def create_hdf_file(file_name, tot_areas, appl_areas, skip_missing_ids=False,
         ids = sorted(tot_areas.keys())
         assert ids == sorted(appl_areas.keys())
     h5_file = tables.open_file(file_name, mode='w',
-                                title='Input data for catchment models.')
+                               title='Input data for catchment models.')
     for id_ in ids:
         group = h5_file.create_group('/', 'catch_{}'.format(id_),
                                      'catchment {}'.format(id_))
@@ -108,60 +123,58 @@ def create_hdf_file(file_name, tot_areas, appl_areas, skip_missing_ids=False,
     h5_file.close()
 
 
-def add_input_tables_batched(h5_file_name, t_file_name, p_file_name,
-                             q_file_name, batch_size=2000, total=365*24):
-    """Add input in batches of ids.
+def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
+                     batch_size=None, total=365*24):
+    """Add input with pandas.
     """
     filters = tables.Filters(complevel=5, complib='zlib')
     h5_file = tables.open_file(h5_file_name, mode='a')
-    table_name = 'input'
-    all_ids = []
-    for group in h5_file.walk_nodes('/', 'Group'):
-        name = group._v_name
-        if name.startswith('catch_'):
-            id_ = int(name.split('_')[1])
-            all_ids.append(id_)
-    all_ids.sort()
-    print('data')
+    get_child = h5_file.root._f_get_child  # pylint: disable=protected-access
+    all_ids = ids = find_ids(h5_file)
+    usecols = None
+    if batch_size is None:
+        batch_size = sys.maxsize
+    if batch_size < len(all_ids):
+        usecols = True
     counter = 0
-    batch_counter = 0
-    fraction = batch_size / len(all_ids)
+    total_ids = len(all_ids)
     while all_ids:
-        reader = CsvReader(t_file_name, p_file_name, q_file_name)
-        batch_counter += 1
-        data = {}
         ids = all_ids[-batch_size:]
         all_ids = all_ids[:-batch_size]
-        for catchments in reader:
-            counter += 1
-            print('{:2d} {:7d}{:7.2f} % '.format(batch_counter,
-                                             counter,
-                                             counter * fraction / total * 100,
-                                             ),
-                  end= '\r')
-            for id_ in ids:
-                data.setdefault(id_, []).append(catchments[id_])
-        print('\nhdf5')
-        get_child = h5_file.root._f_get_child
+        if usecols:
+            usecols = ids
+        temp = pandas.read_csv(t_file_name, sep=';', parse_dates=True,
+                               usecols=usecols)
+        precip = pandas.read_csv(p_file_name, sep=';', parse_dates=True,
+                                 usecols=usecols)
+        dis = pandas.read_csv(q_file_name, sep=';', parse_dates=True,
+                              usecols=usecols)
+        temp_hourly = temp.reindex(dis.index, method='ffill')
         for id_ in ids:
+            counter += 1
+            inputs = pandas.concat([temp_hourly[id_], precip[id_], dis[id_]],
+                                   axis=1)
+            inputs.columns = ['temperature', 'precipitation', 'discharge']
+            input_table = inputs.to_records(index=False)
             name = 'catch_{}'.format(id_)
             group = get_child(name)
-            table = h5_file.create_table(group, table_name, Input,
-                                         'time varying inputs',
-                                         filters=filters)
-            row = table.row
-            for data_row in data[id_]:
-                row_names = ['datetime', 'temperature', 'precipitation',
-                             'discharge']
-                for row_name, row_value in zip(row_names, data_row):
-                    row[row_name] = row_value
-                row.append()
+            h5_file.create_table(group, 'inputs', input_table,
+                                 'time varying inputs', expectedrows=total,
+                                 filters=filters)
+            print('{:7d} {:7}{:7.2f} % '.format(
+                counter, id_, counter / total_ids * 100), end='\r')
+
+    int_steps = pandas.DataFrame(dis.index.to_series()).astype(numpy.int64)
+    int_steps.columns = ['timesteps']
+    time_steps = int_steps.to_records(index=False)
+    h5_file.create_table('/', 'time_steps', time_steps,
+                         'time steps for all catchments')
     h5_file.close()
 
 
-
-
 def preprocess(config_file):
+    """Do the preprocessing.
+    """
     config = read_config(config_file)
     h5_file_name = config['preprocessing']['hdf_input_path']
     t_file_name = config['preprocessing']['temperature_path']
@@ -174,16 +187,21 @@ def preprocess(config_file):
     strahler, tot_areas, appl_areas = filter_strahler_lessthan_three(
         strahler, tot_areas, appl_areas)
     create_hdf_file(h5_file_name, tot_areas, appl_areas)
-    add_input_tables_batched(h5_file_name, t_file_name, p_file_name,
-                              q_file_name)
+    add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name)
 
 
 if __name__ == '__main__':
 
-    import sys
-    import timeit
 
-    start = timeit.default_timer()
-    preprocess(sys.argv[1])
-    print('run time:', timeit.default_timer() - start)
+    def test():
+        """Try i out.
+        """
+
+        import timeit
+
+        start = timeit.default_timer()
+        preprocess(sys.argv[1])
+        print('run time:', timeit.default_timer() - start)
+
+    test()
 
