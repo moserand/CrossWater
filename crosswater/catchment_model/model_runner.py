@@ -42,12 +42,13 @@ class ModelRunner(object):
         """
         if self.tmp_path.exists():
             shutil.rmtree(str(self.tmp_path))
-        self.tmp_path.mkdir()
         self.worker_paths = []
+        shutil.copytree(str(self.program_path), str(self.tmp_path))
         for worker in range(self.number_of_workers):
             worker_path = self.tmp_path / Path('worker_{}'.format(worker))
+            worker_path.mkdir()
             self.worker_paths.append(worker_path)
-            shutil.copytree(str(self.program_path), str(worker_path))
+
 
     def _open_files(self):
         """Open HDF5 input and out files.
@@ -66,31 +67,33 @@ class ModelRunner(object):
             self._prepare_tmp()
 
     def run_all(self):
-        all_ids = iter(find_ids(self.hdf_input))
-        free_paths = self.worker_paths[:]
-        active_workers = {}
-        done = False
-        while True:
-            for index, path in enumerate(free_paths):
-                try:
-                    id_ = next(all_ids)
-                except StopIteration:
-                    done = True
+        with ChDir(str(self.tmp_path)):
+            all_ids = iter(find_ids(self.hdf_input))
+            free_paths = self.worker_paths[:]
+            active_workers = {}
+            done = False
+            while True:
+                for index, path in enumerate(free_paths):
+                    try:
+                        id_ = next(all_ids)
+                    except StopIteration:
+                        done = True
+                        break
+                    print(id_)
+                    worker = Worker(id_, path, self.hdf_input,
+                                    self.layout_xml_path,
+                                    self.layout_name_template)
+                    worker.daemaon = True
+                    worker.start()
+                    active_workers[path] = worker
+                if done:
                     break
-                print(id_)
-                worker = Worker(id_, path, self.hdf_input,
-                                self.layout_xml_path,
-                                self.layout_name_template)
-                worker.start()
-                active_workers[path] = worker
-            if done:
-                break
-            free_paths = []
-            for path, worker in active_workers.items():
-                if not worker.is_alive():
-                    free_paths.append(path)
-        for worker in active_workers.values():
-            worker.join()
+                free_paths = []
+                for path, worker in active_workers.items():
+                    if not worker.is_alive():
+                        free_paths.append(path)
+            for worker in active_workers.values():
+                worker.join()
 
 
 class Worker(Thread):
@@ -105,7 +108,7 @@ class Worker(Thread):
         self.hdf_input = hdf_input
         self.layout_xml_path = layout_xml_path
         self.layout_name_template = layout_name_template
-        self.input_txt_name = 'input.txt'
+        self.input_txt_name = str(self.path / 'input.txt')
 
     def _make_input(self):
         """Create input files.
@@ -143,16 +146,17 @@ class Worker(Thread):
                     Q=row['discharge']))
 
     def _execute(self):
-        with ChDir(str(self.path)):
-            try:
-                subprocess.check_call(
-                    ['server',
-                     self.layout_name_template.format(id=self.id),
-                     'RUN',
-                     'out_{}.txt'.format(self.id)])
-            except subprocess.CalledProcessError as err:
-                print('error running model for ID', self.id)
-                print('exits staus:', err.returncode)
+
+        input_path = self.path / self.layout_name_template.format(
+            id=self.id)
+        output_path = self.path / 'out_{}.txt'.format(self.id)
+        try:
+            output = subprocess.check_output(
+                ['server', str(input_path), 'RUN', str(output_path)],
+            stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as err:
+            print('error running model for ID', self.id)
+            print('exits staus:', err.returncode)
 
     def run(self):
         self._make_input()
