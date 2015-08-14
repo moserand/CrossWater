@@ -1,9 +1,12 @@
 from pathlib import Path
+import random
 import shutil
+import time
 
 import tables
 
 from crosswater.read_config import read_config
+from crosswater.tools.hdf5_helpers import find_ids
 
 
 class ModelRunner(object):
@@ -19,9 +22,9 @@ class ModelRunner(object):
         self.output_path = config['catchment_model']['output_path']
         self.number_of_workers = config['catchment_model']['number_of_workers']
         self.program_path = Path(__file__).parents[2] / Path('program')
-        self.input_txt_name = 'input.txt'
         self._make_template_name()
         self._open_files()
+        self._prepare_tmp()
 
     def _make_template_name(self):
         """Create template for the name of the layout file.
@@ -55,14 +58,55 @@ class ModelRunner(object):
         self.hdf_input.close()
         self.hdf_output.close()
 
-    def make_input(self, id_, worker_path):
+        def run_all(self):
+            self._prepare_tmp()
+
+    def run_all(self):
+        all_ids = iter(find_ids(self.hdf_input))
+        free_paths = self.worker_paths[:]
+        active_workers = {}
+        while True:
+            try:
+                id_ = next(all_ids)
+            except StopIteration:
+                break
+            print(id_)
+            for index, path in enumerate(free_paths):
+                print('    free', path)
+                active_workers[path] = Worker(id_, path, self.hdf_input,
+                                              self.hdf_output,
+                                              self.layout_xml_path,
+                                              self.layout_name_template)
+            free_paths = []
+            for path, worker in active_workers.items():
+                if worker.done:
+                    free_paths.append(path)
+                worker.run()
+
+
+
+class Worker(object):
+    """One model run.
+    """
+    def __init__(self, id_, path, hdf_input, hdf_output, layout_xml_path,
+                 layout_name_template):
+        self.id = id_
+        self.path = path
+        self.done = False
+        self.hdf_input = hdf_input
+        self.hdf_output = hdf_output
+        self.layout_xml_path = layout_xml_path
+        self.layout_name_template = layout_name_template
+        self.input_txt_name = 'input.txt'
+
+    def _make_input(self):
         """Create input files.
         """
-        group = self.hdf_input.get_node('/', 'catch_{}'.format(id_))
-        self._make_layout(id_, worker_path, group)
-        self._make_time_varying_input(id_, worker_path, group)
+        group = self.hdf_input.get_node('/', 'catch_{}'.format(self.id))
+        self._make_layout(group)
+        self._make_time_varying_input(group)
 
-    def _make_layout(self, id_, worker_path, group):
+    def _make_layout(self, group):
         """Create the XML file for the model layout.
         """
         parameters_table= group._f_get_child('parameters')
@@ -70,19 +114,19 @@ class ModelRunner(object):
                       for row in parameters_table}
         with open(str(self.layout_xml_path))as fobj:
             layout_template = fobj.read()
-        layout = layout_template.format(id=id_,
+        layout = layout_template.format(id=self.id,
                                         input_file_name=self.input_txt_name,
                                         **parameters)
-        layout_file_name = Path(self.layout_name_template.format(id=id_))
-        model_layout_path = worker_path / layout_file_name
+        layout_file_name = Path(self.layout_name_template.format(id=self.id))
+        model_layout_path = self.path / layout_file_name
         with open(str(model_layout_path), 'w') as fobj:
             fobj.write(layout)
 
-    def _make_time_varying_input(self, id_, worker_path, group):
+    def _make_time_varying_input(self, group):
         """Create the text file for the input of T, P, an Q.
         """
-        input_table = group._f_get_child('input')
-        txt_input_path = worker_path / Path(self.input_txt_name)
+        input_table = group._f_get_child('inputs')
+        txt_input_path = self.path / Path(self.input_txt_name)
         with open(str(txt_input_path), 'w') as fobj:
             fobj.write('step\tT\tP\tQ\tEmptymeas\n')
             for step, row in enumerate(input_table):
@@ -90,15 +134,8 @@ class ModelRunner(object):
                     step=step,T=row['temperature'], P=row['precipitation'],
                     Q=row['discharge']))
 
-    def store_output(sef):
-        group = h5_file.create_group('/', 'catch_{}'.format(id_),
-                                             'catchment {}'.format(id_))
-        table = h5_file.create_table(group, 'parameters', Parameters,
-                                             'constant parameters')
-    def run_all(self):
-        self._prepare_tmp()
-
-
-
-
+    def run(self):
+        self._make_input()
+        time.sleep(random.random())
+        self.done = True
 
