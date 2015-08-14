@@ -24,6 +24,8 @@ class ModelRunner(object):
         self._open_files()
 
     def _make_template_name(self):
+        """Create template for the name of the layout file.
+        """
         self.layout_name_template = '{stem}_{{id}}{suffix}'.format(
             stem=self.layout_xml_path.stem,
             suffix=self.layout_xml_path.suffix)
