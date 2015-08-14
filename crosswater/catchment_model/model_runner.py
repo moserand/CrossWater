@@ -30,9 +30,8 @@ class ModelRunner(object):
             stem=self.layout_xml_path.stem,
             suffix=self.layout_xml_path.suffix)
 
-
     def _prepare_tmp(self):
-        """Create tmp path and worker patgs. Copy executable.
+        """Create tmp path and worker paths. Copy executable.
         """
         if self.tmp_path.exists():
             shutil.rmtree(str(self.tmp_path))
