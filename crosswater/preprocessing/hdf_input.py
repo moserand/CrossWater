@@ -13,6 +13,7 @@ import tables
 
 from crosswater.read_config import read_config
 from crosswater.tools import dbflib
+from crosswater.tools.hdf5_helpers import find_ids
 
 
 def read_dbf_cols(dbf_file_name, col_names=None):
@@ -68,19 +69,6 @@ def filter_strahler_lessthan_three(strahler, tot_areas, appl_areas):
     ids = {id_ for id_, value in strahler.items() if value <= 3}
     return (apply_filter(strahler), apply_filter(tot_areas),
             apply_filter(appl_areas))
-
-
-def find_ids(h5_file):
-    """Returns IDs from the group names.
-    """
-    ids = []
-    for group in h5_file.walk_nodes('/', 'Group'):
-        name = group._v_name  # pylint: disable=protected-access
-        if name.startswith('catch_'):
-            id_ = name.split('_')[1]
-            ids.append(id_)
-    ids.sort()
-    return ids
 
 
 class Parameters(tables.IsDescription):
