@@ -2,6 +2,7 @@ from pathlib import Path
 import random
 import shutil
 import time
+from threading import Thread
 
 import tables
 
@@ -65,36 +66,40 @@ class ModelRunner(object):
         all_ids = iter(find_ids(self.hdf_input))
         free_paths = self.worker_paths[:]
         active_workers = {}
+        done = False
         while True:
-            try:
-                id_ = next(all_ids)
-            except StopIteration:
-                break
-            print(id_)
             for index, path in enumerate(free_paths):
-                print('    free', path)
-                active_workers[path] = Worker(id_, path, self.hdf_input,
-                                              self.hdf_output,
-                                              self.layout_xml_path,
-                                              self.layout_name_template)
+                try:
+                    id_ = next(all_ids)
+                except StopIteration:
+                    done = True
+                    break
+                print(id_)
+                worker = Worker(id_, path, self.hdf_input,
+                                self.layout_xml_path,
+                                self.layout_name_template)
+                worker.start()
+                active_workers[path] = worker
+            if done:
+                break
             free_paths = []
             for path, worker in active_workers.items():
-                if worker.done:
+                if not worker.is_alive():
                     free_paths.append(path)
-                worker.run()
+        for worker in active_workers.values():
+            worker.join()
 
 
-
-class Worker(object):
+class Worker(Thread):
     """One model run.
     """
-    def __init__(self, id_, path, hdf_input, hdf_output, layout_xml_path,
+    def __init__(self, id_, path, hdf_input, layout_xml_path,
                  layout_name_template):
+        super().__init__()
         self.id = id_
         self.path = path
         self.done = False
         self.hdf_input = hdf_input
-        self.hdf_output = hdf_output
         self.layout_xml_path = layout_xml_path
         self.layout_name_template = layout_name_template
         self.input_txt_name = 'input.txt'
