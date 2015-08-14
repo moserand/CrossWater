@@ -1,4 +1,8 @@
-import os
+"""Run all catchment models.
+
+Calls external executable.
+"""
+
 from pathlib import Path
 import random
 import shutil
@@ -15,6 +19,7 @@ from crosswater.tools.path_helper import ChDir
 
 class ModelRunner(object):
     """Run all catchment models"""
+    # pylint: disable=too-few-public-methods
     def __init__(self, config_file):
         """
         """
@@ -63,27 +68,49 @@ class ModelRunner(object):
         self.hdf_input.close()
         self.hdf_output.close()
 
-        def run_all(self):
-            self._prepare_tmp()
+    @staticmethod
+    def _read_parameters(group):
+        """Read all parameters.
+        """
+        # pylint: disable=protected-access
+        parameters_table = group._f_get_child('parameters')
+        return {row['name'].decode('ascii'): row['value'] for row in
+                parameters_table}
+
+    @staticmethod
+    def _read_inputs(group):
+        """Read whole input table.
+        """
+        # pylint: disable=protected-access
+        parameters_table = group._f_get_child('inputs')
+        return parameters_table[:]
+
+    def _read_parameters_inputs(self, id_):
+        """Read parameters and inputs for gibe ID.
+        """
+        group = self.hdf_input.get_node('/', 'catch_{}'.format(id_))
+        return self._read_parameters(group), self._read_inputs(group)
 
     def run_all(self):
+        """Run all models.
+        """
         with ChDir(str(self.tmp_path)):
             all_ids = iter(find_ids(self.hdf_input))
             free_paths = self.worker_paths[:]
             active_workers = {}
             done = False
             while True:
-                for index, path in enumerate(free_paths):
+                for path in free_paths:
                     try:
                         id_ = next(all_ids)
                     except StopIteration:
                         done = True
                         break
                     print(id_)
-                    worker = Worker(id_, path, self.hdf_input,
+                    parameters, inputs = self._read_parameters_inputs(id_)
+                    worker = Worker(id_, path, parameters, inputs,
                                     self.layout_xml_path,
                                     self.layout_name_template)
-                    worker.daemaon = True
                     worker.start()
                     active_workers[path] = worker
                 if done:
@@ -99,30 +126,29 @@ class ModelRunner(object):
 class Worker(Thread):
     """One model run.
     """
-    def __init__(self, id_, path, hdf_input, layout_xml_path,
+    def __init__(self, id_, path, parameters, inputs, layout_xml_path,
                  layout_name_template):
         super().__init__()
         self.id = id_
         self.path = path
+        self.parameters = parameters
+        self.inputs = inputs
         self.done = False
-        self.hdf_input = hdf_input
         self.layout_xml_path = layout_xml_path
         self.layout_name_template = layout_name_template
         self.input_txt_name = str(self.path / 'input.txt')
+        self.daemaon = True
 
     def _make_input(self):
         """Create input files.
         """
-        group = self.hdf_input.get_node('/', 'catch_{}'.format(self.id))
-        self._make_layout(group)
-        self._make_time_varying_input(group)
+        self._make_layout(self.parameters)
+        self._make_time_varying_input(self.inputs)
 
-    def _make_layout(self, group):
+    def _make_layout(self, parameters):
         """Create the XML file for the model layout.
         """
-        parameters_table= group._f_get_child('parameters')
-        parameters = {row['name'].decode('ascii'): row['value']
-                      for row in parameters_table}
+        # pylint: disable=star-args
         with open(str(self.layout_xml_path))as fobj:
             layout_template = fobj.read()
         layout = layout_template.format(id=self.id,
@@ -133,32 +159,34 @@ class Worker(Thread):
         with open(str(model_layout_path), 'w') as fobj:
             fobj.write(layout)
 
-    def _make_time_varying_input(self, group):
+    def _make_time_varying_input(self, inputs):
         """Create the text file for the input of T, P, an Q.
         """
-        input_table = group._f_get_child('inputs')
         txt_input_path = self.path / Path(self.input_txt_name)
         with open(str(txt_input_path), 'w') as fobj:
             fobj.write('step\tT\tP\tQ\tEmptymeas\n')
-            for step, row in enumerate(input_table):
+            for step, row in enumerate(inputs):
                 fobj.write('{step}\t{T}\t{P}\t{Q}\tN/A\n'.format(
-                    step=step,T=row['temperature'], P=row['precipitation'],
+                    step=step, T=row['temperature'], P=row['precipitation'],
                     Q=row['discharge']))
 
     def _execute(self):
-
+        """Run external program for catchment model.
+        """
         input_path = self.path / self.layout_name_template.format(
             id=self.id)
         output_path = self.path / 'out_{}.txt'.format(self.id)
         try:
-            output = subprocess.check_output(
+            _ = subprocess.check_output(
                 ['server', str(input_path), 'RUN', str(output_path)],
-            stderr=subprocess.STDOUT)
+                stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print('error running model for ID', self.id)
             print('exits staus:', err.returncode)
 
     def run(self):
+        """Run thread.
+        """
         self._make_input()
         self._execute()
         time.sleep(random.random())
