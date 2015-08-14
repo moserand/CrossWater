@@ -1,6 +1,8 @@
+import os
 from pathlib import Path
 import random
 import shutil
+import subprocess
 import time
 from threading import Thread
 
@@ -8,6 +10,7 @@ import tables
 
 from crosswater.read_config import read_config
 from crosswater.tools.hdf5_helpers import find_ids
+from crosswater.tools.path_helper import ChDir
 
 
 class ModelRunner(object):
@@ -139,8 +142,21 @@ class Worker(Thread):
                     step=step,T=row['temperature'], P=row['precipitation'],
                     Q=row['discharge']))
 
+    def _execute(self):
+        with ChDir(str(self.path)):
+            try:
+                subprocess.check_call(
+                    ['server',
+                     self.layout_name_template.format(id=self.id),
+                     'RUN',
+                     'out_{}.txt'.format(self.id)])
+            except subprocess.CalledProcessError as err:
+                print('error running model for ID', self.id)
+                print('exits staus:', err.returncode)
+
     def run(self):
         self._make_input()
+        self._execute()
         time.sleep(random.random())
         self.done = True
 
