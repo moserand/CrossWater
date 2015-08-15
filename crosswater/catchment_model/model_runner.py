@@ -65,7 +65,7 @@ class ModelRunner(object):
             self.worker_paths.append(worker_path)
 
     def _open_files(self):
-        """Open HDF5 input and out files.
+        """Open HDF5 input and output files.
         """
         self.hdf_input = tables.open_file(self.input_file_name, mode='r')
         self.hdf_output = tables.open_file(self.output_file_name, mode='w',
@@ -80,7 +80,7 @@ class ModelRunner(object):
         self.output_table.flush()
 
     def _close_files(self):
-        """Open HDF5 in put and out files.
+        """Close HDF5 input and output files.
         """
         self.hdf_input.close()
         self.hdf_output.close()
@@ -120,8 +120,10 @@ class ModelRunner(object):
             row['concentration'] = concentration
             row.append()
 
-    def run_all(self):
-        """Run all models.
+    def _run_all(self):
+        """Run all models with out catching all exceptions.
+        The similary named `run_all()` method will close all HDF5 files
+        after an exception in this method.
         """
         start = default_timer()
         all_ids = find_ids(self.hdf_input)
@@ -169,6 +171,14 @@ class ModelRunner(object):
                 self._write_output(*self.queue.get())
         print()
 
+
+    def run_all(self):
+        """Run all models.
+        """
+        try:
+            self._run_all()
+        finally:
+            self._close_files()
 
 class Worker(Thread):
     """One model run.
