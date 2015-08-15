@@ -5,11 +5,12 @@ Calls external executable.
 
 import os
 from pathlib import Path
+from queue import Queue
 import shutil
 import subprocess
+import time
 from timeit import default_timer
 from threading import Thread
-from queue import Queue
 
 import pandas
 import tables
@@ -253,8 +254,18 @@ class Worker(Thread):
                          self.output_path]:
                 try:
                     os.remove(str(path))
+                # External progam may block. Try several times with timeout.
                 except PermissionError:
-                    pass
+                    wait = 1
+                    step = 0.1
+                    while wait > 0:
+                        wait -= step
+                        time.sleep(step)
+                        try:
+                            os.remove(str(path))
+                            break
+                        except PermissionError:
+                            pass
 
 class OutputValues(tables.IsDescription):
     timestep = tables.Int32Col()
