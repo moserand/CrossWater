@@ -35,27 +35,30 @@ def read_dbf_col(dbf_file_name, col_name):
     return read_dbf_cols(dbf_file_name, [col_name])[col_name]
 
 
-def get_value_by_id(dbf_file_name, col_name, converter=1):
+def get_value_by_id(dbf_file_name, col_name, converter=1, ids=None):
     """Returns a dict catchment-id: value
     """
     data = read_dbf_cols(dbf_file_name, ['WSO1_ID', col_name])
-    return {id_: value * converter for id_, value in
+    res = {id_: value * converter for id_, value in
             zip(data['WSO1_ID'], data[col_name])}
+    if ids:
+        res = {id_: value for id_, value in res.items() if id_ in ids}
+    return res
 
 
-def get_tot_areas(dbf_file_name):
+def get_tot_areas(dbf_file_name, ids=None):
     """Returns a dict with catchment ids as keys and areas as values."""
-    return get_value_by_id(dbf_file_name, 'AREA')
+    return get_value_by_id(dbf_file_name, 'AREA', ids=ids)
 
 
-def get_strahler(dbf_file_name):
+def get_strahler(dbf_file_name, ids=None):
     """Returns a dict with catchment ids as keys and strahler as values."""
-    return get_value_by_id(dbf_file_name, 'STRAHLER')
+    return get_value_by_id(dbf_file_name, 'STRAHLER',ids=ids)
 
 
-def get_appl_areas(dbf_file_name):
+def get_appl_areas(dbf_file_name, ids=None):
     """Returns a dict with catchment ids as keys and maiz areas as values."""
-    return get_value_by_id(dbf_file_name, 'LMAIZ', converter=1e6)
+    return get_value_by_id(dbf_file_name, 'LMAIZ', converter=1e6, ids=ids)
 
 
 def filter_strahler_lessthan_three(strahler, tot_areas, appl_areas):
@@ -80,13 +83,9 @@ class Parameters(tables.IsDescription):
     unit = tables.StringCol(20)
 
 
-def create_hdf_file(file_name, tot_areas, appl_areas, skip_missing_ids=False,
-                    ids=None):
+def create_hdf_file(file_name, tot_areas, appl_areas):
     """Create HDF5 file and add areas as parameters."""
-    if not ids:
-        skip_missing_ids = False
-        ids = sorted(tot_areas.keys())
-        assert ids == sorted(appl_areas.keys())
+    ids = sorted(tot_areas.keys())
     h5_file = tables.open_file(file_name, mode='w',
                                title='Input data for catchment models.')
     for id_ in ids:
@@ -94,12 +93,9 @@ def create_hdf_file(file_name, tot_areas, appl_areas, skip_missing_ids=False,
                                      'catchment {}'.format(id_))
         table = h5_file.create_table(group, 'parameters', Parameters,
                                      'constant parameters')
-        try:
-            tot_area = tot_areas[id_]
-            appl_area = appl_areas[id_]
-        except KeyError:
-            if not skip_missing_ids:
-                raise
+        tot_area = tot_areas[id_]
+        appl_area = appl_areas[id_]
+
         row = table.row
         row['name'] = 'A_tot'
         row['value'] = tot_area
@@ -161,6 +157,13 @@ def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
     h5_file.close()
 
 
+def get_first_ids(q_file_name, max_ids):
+
+    with open(q_file_name) as fobj:
+        header = next(fobj).split(';')
+    return {int(entry[1:-1]) for entry in header[:max_ids]}
+
+
 def preprocess(config_file):
     """Do the preprocessing.
     """
@@ -169,10 +172,14 @@ def preprocess(config_file):
     t_file_name = config['preprocessing']['temperature_path']
     p_file_name = config['preprocessing']['precipitation_path']
     q_file_name = config['preprocessing']['discharge_path']
+    max_ids = config['preprocessing']['max_ids']
+    ids = None
+    if max_ids:
+        ids = get_first_ids(q_file_name, max_ids)
 
-    strahler = get_strahler(config['preprocessing']['catchment_path'])
-    tot_areas = get_tot_areas(config['preprocessing']['catchment_path'])
-    appl_areas = get_appl_areas(config['preprocessing']['landuse_path'])
+    strahler = get_strahler(config['preprocessing']['catchment_path'], ids)
+    tot_areas = get_tot_areas(config['preprocessing']['catchment_path'], ids)
+    appl_areas = get_appl_areas(config['preprocessing']['landuse_path'], ids)
     strahler, tot_areas, appl_areas = filter_strahler_lessthan_three(
         strahler, tot_areas, appl_areas)
     create_hdf_file(h5_file_name, tot_areas, appl_areas)
