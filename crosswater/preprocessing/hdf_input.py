@@ -35,11 +35,12 @@ def read_dbf_col(dbf_file_name, col_name):
     return read_dbf_cols(dbf_file_name, [col_name])[col_name]
 
 
-def get_value_by_id(dbf_file_name, col_name):
+def get_value_by_id(dbf_file_name, col_name, converter=1):
     """Returns a dict catchment-id: value
     """
     data = read_dbf_cols(dbf_file_name, ['WSO1_ID', col_name])
-    return {id_: value for id_, value in zip(data['WSO1_ID'], data[col_name])}
+    return {id_: value * converter for id_, value in
+            zip(data['WSO1_ID'], data[col_name])}
 
 
 def get_tot_areas(dbf_file_name):
@@ -54,7 +55,7 @@ def get_strahler(dbf_file_name):
 
 def get_appl_areas(dbf_file_name):
     """Returns a dict with catchment ids as keys and maiz areas as values."""
-    return get_value_by_id(dbf_file_name, 'LMAIZ')
+    return get_value_by_id(dbf_file_name, 'LMAIZ', converter=1e6)
 
 
 def filter_strahler_lessthan_three(strahler, tot_areas, appl_areas):
@@ -182,7 +183,7 @@ if __name__ == '__main__':
 
 
     def test():
-        """Try i out.
+        """Try it out.
         """
 
         import timeit
