@@ -171,7 +171,6 @@ class ModelRunner(object):
                 self._write_output(*self.queue.get())
         print()
 
-
     def run_all(self):
         """Run all models.
         """
