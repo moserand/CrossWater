@@ -3,14 +3,15 @@
 Calls external executable.
 """
 
+import os
 from pathlib import Path
-import random
 import shutil
 import subprocess
-import time
 from timeit import default_timer
 from threading import Thread
+from queue import Queue
 
+import pandas
 import tables
 
 from crosswater.read_config import read_config
@@ -26,15 +27,18 @@ class ModelRunner(object):
         """
         config = read_config(config_file)
         self.input_file_name = config['catchment_model']['hdf_input_path']
+        self.output_file_name = config['catchment_model']['output_path']
         self.tmp_path = Path(config['catchment_model']['tmp_path'])
         self.layout_xml_path = Path(
             config['catchment_model']['layout_xml_path'])
-        self.output_path = config['catchment_model']['output_path']
         self.number_of_workers = config['catchment_model']['number_of_workers']
         self.program_path = Path(__file__).parents[2] / Path('program')
         self._make_template_name()
         self._open_files()
         self._prepare_tmp()
+        self.output_table = None
+        self._init_hdf_output()
+        self.queue = Queue()
 
     def _make_template_name(self):
         """Create template for the name of the layout file.
@@ -55,13 +59,20 @@ class ModelRunner(object):
             worker_path.mkdir()
             self.worker_paths.append(worker_path)
 
-
     def _open_files(self):
         """Open HDF5 input and out files.
         """
         self.hdf_input = tables.open_file(self.input_file_name, mode='r')
-        self.hdf_output = tables.open_file(self.output_path, mode='w',
+        self.hdf_output = tables.open_file(self.output_file_name, mode='w',
                                            title='Crosswater results')
+
+    def _init_hdf_output(self):
+        """Create empty output tables with timestep, ID, Q, and C.
+        """
+        filters = tables.Filters(complevel=5, complib='zlib')
+        self.output_table = self.hdf_output.create_table(
+            '/', 'output', OutputValues, filters=filters)
+        self.output_table.flush()
 
     def _close_files(self):
         """Open HDF5 in put and out files.
@@ -91,6 +102,18 @@ class ModelRunner(object):
         """
         group = self.hdf_input.get_node('/', 'catch_{}'.format(id_))
         return self._read_parameters(group), self._read_inputs(group)
+
+    def _write_output(self, id_, out):
+        """Write out from one run to HDF5 output file.
+        """
+        row = self.output_table.row
+        for step, (discharge, concentration) in enumerate(
+            zip(out['discharge'], out['concentration']), 1):
+            row['timestep'] = step
+            row['catchment'] = id_
+            row['discharge'] = discharge
+            row['concentration'] = concentration
+            row.append()
 
     def run_all(self):
         """Run all models.
@@ -122,17 +145,23 @@ class ModelRunner(object):
                     parameters, inputs = self._read_parameters_inputs(id_)
                     worker = Worker(id_, path, parameters, inputs,
                                     self.layout_xml_path,
-                                    self.layout_name_template)
+                                    self.layout_name_template,
+                                    self.queue)
                     worker.start()
                     active_workers[path] = worker
-                if done:
-                    break
+
                 free_paths = []
                 for path, worker in active_workers.items():
                     if not worker.is_alive():
                         free_paths.append(path)
+                while not self.queue.empty():
+                    self._write_output(*self.queue.get())
+                if done:
+                    break
             for worker in active_workers.values():
                 worker.join()
+            while not self.queue.empty():
+                self._write_output(*self.queue.get())
         print()
 
 
@@ -140,7 +169,7 @@ class Worker(Thread):
     """One model run.
     """
     def __init__(self, id_, path, parameters, inputs, layout_xml_path,
-                 layout_name_template):
+                 layout_name_template, queue):
         super().__init__()
         self.id = id_
         self.path = path
@@ -148,7 +177,12 @@ class Worker(Thread):
         self.inputs = inputs
         self.layout_xml_path = layout_xml_path
         self.layout_name_template = layout_name_template
+        self.queue = queue
         self.input_txt_name = str(self.path / 'input.txt')
+        self.output_path = self.path / 'out_{}.txt'.format(self.id)
+        self.input_path = self.path / self.layout_name_template.format(
+            id=self.id)
+        self.txt_input_path = self.path / Path(self.input_txt_name)
         self.daemaon = True
 
     def _make_input(self):
@@ -174,8 +208,7 @@ class Worker(Thread):
     def _make_time_varying_input(self, inputs):
         """Create the text file for the input of T, P, an Q.
         """
-        txt_input_path = self.path / Path(self.input_txt_name)
-        with open(str(txt_input_path), 'w') as fobj:
+        with open(str(self.txt_input_path), 'w') as fobj:
             fobj.write('step\tT\tP\tQ\tEmptymeas\n')
             for step, row in enumerate(inputs):
                 fobj.write('{step}\t{T}\t{P}\t{Q}\tN/A\n'.format(
@@ -185,20 +218,37 @@ class Worker(Thread):
     def _execute(self):
         """Run external program for catchment model.
         """
-        input_path = self.path / self.layout_name_template.format(
-            id=self.id)
-        output_path = self.path / 'out_{}.txt'.format(self.id)
         try:
             _ = subprocess.check_output(
-                ['server', str(input_path), 'RUN', str(output_path)],
+                ['server', str(self.input_path), 'RUN', str(self.output_path)],
                 stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print('error running model for ID', self.id)
-            print('exits staus:', err.returncode)
+            print('exit status:', err.returncode)
 
     def run(self):
         """Run thread.
         """
         self._make_input()
         self._execute()
+        self._read_output()
 
+    def _read_output(self):
+        """Read output from catchment model.
+        """
+        usecols = ['Q', 'CalcC_atrazin_{}'.format(self.id)]
+        out = pandas.read_csv(str(self.output_path), delim_whitespace=True,
+                              usecols=usecols)
+        out.columns = pandas.Index(['discharge', 'concentration'])
+        self.queue.put((self.id, out))
+        for path in [self.input_path, self.txt_input_path, self.output_path]:
+            try:
+                os.remove(str(path))
+            except PermissionError:
+                pass
+
+class OutputValues(tables.IsDescription):
+    timestep = tables.Int32Col()
+    catchment = tables.StringCol(10)
+    discharge = tables.Float64Col()
+    concentration = tables.Float64Col()
