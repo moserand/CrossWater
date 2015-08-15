@@ -26,6 +26,10 @@ class ModelRunner(object):
         """
         """
         config = read_config(config_file)
+        self.debug = False
+        debug = config['catchment_model']['debug'].strip().lower()
+        if debug in ['true', 'yes', 'y']:
+            self.debug = True
         self.input_file_name = config['catchment_model']['hdf_input_path']
         self.output_file_name = config['catchment_model']['output_path']
         self.tmp_path = Path(config['catchment_model']['tmp_path'])
@@ -146,7 +150,8 @@ class ModelRunner(object):
                     worker = Worker(id_, path, parameters, inputs,
                                     self.layout_xml_path,
                                     self.layout_name_template,
-                                    self.queue)
+                                    self.queue,
+                                    self.debug)
                     worker.start()
                     active_workers[path] = worker
 
@@ -169,7 +174,7 @@ class Worker(Thread):
     """One model run.
     """
     def __init__(self, id_, path, parameters, inputs, layout_xml_path,
-                 layout_name_template, queue):
+                 layout_name_template, queue, debug=False):
         super().__init__()
         self.id = id_
         self.path = path
@@ -178,11 +183,11 @@ class Worker(Thread):
         self.layout_xml_path = layout_xml_path
         self.layout_name_template = layout_name_template
         self.queue = queue
-        self.input_txt_name = str(self.path / 'input.txt')
+        self.debug = debug
         self.output_path = self.path / 'out_{}.txt'.format(self.id)
         self.input_path = self.path / self.layout_name_template.format(
             id=self.id)
-        self.txt_input_path = self.path / Path(self.input_txt_name)
+        self.txt_input_path = self.path / Path('input_{}.txt'.format(self.id))
         self.daemaon = True
 
     def _make_input(self):
@@ -198,7 +203,7 @@ class Worker(Thread):
         with open(str(self.layout_xml_path))as fobj:
             layout_template = fobj.read()
         layout = layout_template.format(id=self.id,
-                                        input_file_name=self.input_txt_name,
+                                        input_file_name=self.txt_input_path,
                                         **parameters)
         layout_file_name = Path(self.layout_name_template.format(id=self.id))
         model_layout_path = self.path / layout_file_name
@@ -221,10 +226,12 @@ class Worker(Thread):
         try:
             _ = subprocess.check_output(
                 ['server', str(self.input_path), 'RUN', str(self.output_path)],
-                stderr=subprocess.STDOUT)
+                stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as err:
             print('error running model for ID', self.id)
             print('exit status:', err.returncode)
+            print(err)
+            print()
 
     def run(self):
         """Run thread.
@@ -241,11 +248,13 @@ class Worker(Thread):
                               usecols=usecols)
         out.columns = pandas.Index(['discharge', 'concentration'])
         self.queue.put((self.id, out))
-        for path in [self.input_path, self.txt_input_path, self.output_path]:
-            try:
-                os.remove(str(path))
-            except PermissionError:
-                pass
+        if not self.debug:
+            for path in [self.input_path, self.txt_input_path,
+                         self.output_path]:
+                try:
+                    os.remove(str(path))
+                except PermissionError:
+                    pass
 
 class OutputValues(tables.IsDescription):
     timestep = tables.Int32Col()
