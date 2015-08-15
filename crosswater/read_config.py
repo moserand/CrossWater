@@ -26,8 +26,10 @@ def read_config(file_name_or_fobj):
         config.read(file_name_or_fobj)
     else:
         config.read_string(file_name_or_fobj.read())
+    max_ids = config['preprocessing'].getint('max_ids', fallback=None)
     res = {sec_name: make_abs_paths(config, sec_name) for
            sec_name in config.sections()}
     res['catchment_model']['number_of_workers'] = int(
         res['catchment_model']['number_of_workers'])
+    res['preprocessing']['max_ids'] = max_ids
     return res
