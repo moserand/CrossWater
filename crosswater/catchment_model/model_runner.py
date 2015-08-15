@@ -123,16 +123,15 @@ class ModelRunner(object):
     def run_all(self):
         """Run all models.
         """
-
+        start = default_timer()
+        all_ids = find_ids(self.hdf_input)
+        nids = len(all_ids)
+        all_ids = iter(all_ids)
+        free_paths = self.worker_paths[:]
+        active_workers = {}
+        done = False
+        counter = 0
         with ChDir(str(self.tmp_path)):
-            start = default_timer()
-            all_ids = find_ids(self.hdf_input)
-            nids = len(all_ids)
-            all_ids = iter(all_ids)
-            free_paths = self.worker_paths[:]
-            active_workers = {}
-            done = False
-            counter = 0
             while True:
                 for path in free_paths:
                     try:
