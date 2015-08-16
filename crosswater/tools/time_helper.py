@@ -24,7 +24,6 @@ def seconds_to_time_tuple(seconds):
     return Delta(*[int(entry) for entry in (days, hours, minutes, sec,
                                             decimal)])
 
-
 def format_time_tuple(time_tuple, fixed=False):
     """Make the time nicely human readbale.
     """
@@ -42,6 +41,11 @@ def format_time_tuple(time_tuple, fixed=False):
             return '{:2d}.{:d} s'.format(seconds, decimal)
         return '{:2d} s'.format(seconds)
 
+
+def format_seconds(seconds):
+    return(format_time_tuple(seconds_to_time_tuple(seconds)))
+
+
 def show_used_time(func):
     """Measure run time and print after completion.
     """
@@ -49,7 +53,8 @@ def show_used_time(func):
     def wrapper(*args, **kwargs):
         start = default_timer()
         res = func(*args, **kwargs)
+        seconds = default_timer() - start
         print()
-        print('run time: {:.1f} s'.format(default_timer() - start))
+        print('run time:', format_seconds(seconds))
         return res
     return wrapper
