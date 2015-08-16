@@ -80,6 +80,7 @@ class ProgressDisplay(object):
         self.additional_format = additional_format
         self.last_display = self.start
         self.total_width = len(str(total))
+        self.blank = ''
 
     def show_progress(self, counter, force=False, additional=None):
         """Display a progress bar with time imformation inplace.
@@ -94,7 +95,7 @@ class ProgressDisplay(object):
     def _process(self, current_stamp, counter, additional):
         """Show the information.
         """
-        assert counter > 0
+        assert counter > 0, 'counter must be > 0'
         total = self.total
         duration = current_stamp - self.start
         fraction = counter / total
@@ -102,7 +103,7 @@ class ProgressDisplay(object):
             estimated = duration / fraction
         except ZeroDivisionError:
             return
-        remaning = estimated - duration
+        remaining = estimated - duration
         percent = fraction * 100
         text = ''
         if additional:
@@ -112,8 +113,10 @@ class ProgressDisplay(object):
         text += ' {:5.2f} %'.format(percent)
         text += ' elapsed: ' + format_seconds(duration, fixed=True)
         text += ' estimated: ' + format_seconds(estimated, fixed=True)
-        text += ' remaning: ' + format_seconds(remaning, fixed=True)
+        text += ' remaining: ' + format_seconds(remaining, fixed=True)
+        print(self.blank, end='\r')
         print(text, end='\r')
+        self.blank = ' ' * len(text)
 
 if __name__ == '__main__':
 
@@ -127,5 +130,4 @@ if __name__ == '__main__':
         for x in range(1, count):
             time.sleep(0.05)
             prog.show_progress(x, 12)
-
     test()
