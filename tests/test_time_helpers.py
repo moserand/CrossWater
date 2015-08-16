@@ -1,6 +1,8 @@
+
 import time
 
-from crosswater.tools.time_helper import show_used_time
+from crosswater.tools.time_helper import show_used_time, seconds_to_time_tuple
+
 
 def test_show_used_time_1(capfd):
 
@@ -24,4 +26,14 @@ def test_show_used_time_2(capfd):
 
     out, err = capfd.readouterr()
     assert out == '\nrun time: 0.6 s\n'
+
+
+def test_seconds_to_tuple():
+    assert seconds_to_time_tuple(1) == (0, 0, 0, 1)
+    assert seconds_to_time_tuple(1).seconds == 1
+    assert seconds_to_time_tuple(61) == (0, 0, 1, 1)
+    assert seconds_to_time_tuple(661) == (0, 0, 11, 1)
+    assert seconds_to_time_tuple(7861) == (0, 2, 11, 1)
+    assert seconds_to_time_tuple(86400) == (1, 0, 0, 0)
+    assert seconds_to_time_tuple(86401) == (1, 0, 0, 1)
 
