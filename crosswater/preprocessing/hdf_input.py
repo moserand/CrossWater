@@ -2,7 +2,7 @@
 
 """Generate HDF5 file with all catchment model input data.
 
-Source are DBF and some large text files.
+Sources are DBF and some large text files.
 """
 
 import sys
@@ -188,16 +188,15 @@ def preprocess(config_file):
 
 if __name__ == '__main__':
 
+    from crosswater.tools.time_helper import show_used_time
 
+    @show_used_time
     def test():
         """Try it out.
         """
-
-        import timeit
-
-        start = timeit.default_timer()
-        preprocess(sys.argv[1])
-        print('run time:', timeit.default_timer() - start)
+        config = sys.argv[1]
+        print('processing with {} ...'.format(config))
+        preprocess(config)
 
     test()
 
