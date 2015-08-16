@@ -47,7 +47,7 @@ def convert(in_file_name, out_file_name, batch_size=2, total=365 * 24):
     read_start = 0
     read_stop = nids * batch_size
     for step in range(total):
-        prog.show_progress(step)
+        prog.show_progress(step + 1)
         if step % batch_size == 0:
             # pylint: disable=no-member
             batch_data = table.read_sorted('timestep', start=read_start,
@@ -69,6 +69,7 @@ def convert(in_file_name, out_file_name, batch_size=2, total=365 * 24):
         group = out_file.create_group('/', 'step_{}'.format(step))
         out_file.create_table(group, 'values', values,
                               filters=filters)
+    prog.show_progress(step + 1, force=True)
     in_file.close()
     out_file.close()
 
