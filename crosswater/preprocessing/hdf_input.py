@@ -14,6 +14,7 @@ import tables
 from crosswater.read_config import read_config
 from crosswater.tools import dbflib
 from crosswater.tools.hdf5_helpers import find_ids
+from crosswater.tools.time_helper import ProgressDisplay
 
 
 def read_dbf_cols(dbf_file_name, col_names=None):
@@ -40,7 +41,7 @@ def get_value_by_id(dbf_file_name, col_name, converter=1, ids=None):
     """
     data = read_dbf_cols(dbf_file_name, ['WSO1_ID', col_name])
     res = {id_: value * converter for id_, value in
-            zip(data['WSO1_ID'], data[col_name])}
+           zip(data['WSO1_ID'], data[col_name])}
     if ids:
         res = {id_: value for id_, value in res.items() if id_ in ids}
     return res
@@ -53,7 +54,7 @@ def get_tot_areas(dbf_file_name, ids=None):
 
 def get_strahler(dbf_file_name, ids=None):
     """Returns a dict with catchment ids as keys and strahler as values."""
-    return get_value_by_id(dbf_file_name, 'STRAHLER',ids=ids)
+    return get_value_by_id(dbf_file_name, 'STRAHLER', ids=ids)
 
 
 def get_appl_areas(dbf_file_name, ids=None):
@@ -109,9 +110,10 @@ def create_hdf_file(file_name, tot_areas, appl_areas):
 
 
 def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
-                     batch_size=None, total=365*24):
+                     batch_size=None, total=365 * 24):
     """Add input with pandas.
     """
+    # pylint: disable=too-many-locals
     filters = tables.Filters(complevel=5, complib='zlib')
     h5_file = tables.open_file(h5_file_name, mode='a')
     get_child = h5_file.root._f_get_child  # pylint: disable=protected-access
@@ -123,6 +125,8 @@ def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
         usecols = True
     counter = 0
     total_ids = len(all_ids)
+    prog = ProgressDisplay(total_ids)
+    # pylint: disable=undefined-loop-variable
     while all_ids:
         ids = all_ids[-batch_size:]
         all_ids = all_ids[:-batch_size]
@@ -146,9 +150,8 @@ def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
             h5_file.create_table(group, 'inputs', input_table,
                                  'time varying inputs', expectedrows=total,
                                  filters=filters)
-            print('{:7d} {:7}{:7.2f} % '.format(
-                counter, id_, counter / total_ids * 100), end='\r')
-
+            prog.show_progress(counter, additional=id_)
+    prog.show_progress(counter, additional=id_, force=True)
     int_steps = pandas.DataFrame(dis.index.to_series()).astype(numpy.int64)
     int_steps.columns = ['timesteps']
     time_steps = int_steps.to_records(index=False)
@@ -158,7 +161,8 @@ def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
 
 
 def get_first_ids(q_file_name, max_ids):
-
+    """Get first `max_ids` from the dicharge file.
+    """
     with open(q_file_name) as fobj:
         header = next(fobj).split(';')
     return {int(entry[1:-1]) for entry in header[:max_ids]}
@@ -199,4 +203,3 @@ if __name__ == '__main__':
         preprocess(config)
 
     test()
-
