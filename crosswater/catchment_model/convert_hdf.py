@@ -3,14 +3,16 @@ one table per time step.
 """
 
 import tables
-from timeit import default_timer
+
+from crosswater.read_config import read_config
+from crosswater.tools.time_helper import ProgressDisplay
 
 
 def make_index(table):
     """Create a complety sorted index (CSI) for `timestep`.
     """
     col = table.cols.timestep
-    if not col.index.is_csi:
+    if not col.index or not col.index.is_csi:
         if col.is_indexed:
             print('removing old index')
             table.cols.timestep.remove_index()
@@ -31,7 +33,7 @@ def count_ids(id_col):
 def convert(in_file_name, out_file_name, batch_size=2, total=365 * 24):
     """Convert on gigantic table into one per timesstep.
     """
-    start_time = default_timer()
+    prog = ProgressDisplay(total)
     filters = tables.Filters(complevel=5, complib='zlib')
     in_file = tables.open_file(in_file_name, mode='a')
     table = in_file.get_node('/output')
@@ -45,15 +47,7 @@ def convert(in_file_name, out_file_name, batch_size=2, total=365 * 24):
     read_start = 0
     read_stop = nids * batch_size
     for step in range(total):
-        duration = default_timer() - start_time
-        fraction = step / total
-        if fraction != 0:
-            estimated = duration / fraction
-            remaning = estimated - duration
-            print(('step: {:7d} duration: {:7.0f} estimated: {:7.0f} '
-                   'remaining: {:7.0f}').format(step + 1, duration, estimated,
-                                                remaning),
-                  end='\r')
+        prog.show_progress(step)
         if step % batch_size == 0:
             # pylint: disable=no-member
             batch_data = table.read_sorted('timestep', start=read_start,
@@ -79,24 +73,12 @@ def convert(in_file_name, out_file_name, batch_size=2, total=365 * 24):
     out_file.close()
 
 
-if __name__ == '__main__':
-
-    def test():
-        """Try it out.
-        """
-        import os
-
-        start = default_timer()
-        base = r'c:\Daten\Mike\projekte\2015_006_crosswater\rhine_model\output'
-        try:
-            convert(
-                #os.path.join(base, 'catchment_output_2.h5'),
-                #os.path.join(base, 'steps_output_2.h5'),
-                os.path.join(base, 'catchment_output_small_2.h5'),
-                os.path.join(base, 'steps_output_small_2.h5'),
-                batch_size=100)
-        finally:
-            print()
-            print(default_timer() - start)
-
-    test()
+def run_convertion(config_file, batch_size):
+    """Convert the output to one table per time step.
+    """
+    print()
+    print('converting output')
+    config = read_config(config_file)
+    in_file_name = config['catchment_model']['output_path']
+    out_file_name = config['catchment_model']['steps_output_path']
+    convert(in_file_name, out_file_name, batch_size=batch_size)
