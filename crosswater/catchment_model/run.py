@@ -2,18 +2,17 @@
 """
 
 import sys
-from timeit import default_timer
 
 from crosswater.catchment_model.model_runner import ModelRunner
+from crosswater.tools.time_helper import show_used_time
 
 
+@show_used_time
 def run():
     """Run all catchment models.
     """
     runner = ModelRunner(sys.argv[1])
-    start = default_timer()
     runner.run_all()
-    print(default_timer() - start)
 
 
 if __name__ == '__main__':
