@@ -9,7 +9,6 @@ from queue import Queue
 import shutil
 import subprocess
 import time
-from timeit import default_timer
 from threading import Thread
 
 import pandas
@@ -18,11 +17,12 @@ import tables
 from crosswater.read_config import read_config
 from crosswater.tools.hdf5_helpers import find_ids
 from crosswater.tools.path_helper import ChDir
+from crosswater.tools.time_helper import ProgressDisplay
 
 
 class ModelRunner(object):
     """Run all catchment models"""
-    # pylint: disable=too-few-public-methods
+    # pylint: disable=too-few-public-methods,too-many-instance-attributes
     def __init__(self, config_file):
         """
         """
@@ -112,8 +112,8 @@ class ModelRunner(object):
         """Write out from one run to HDF5 output file.
         """
         row = self.output_table.row
-        for step, (discharge, concentration) in enumerate(
-            zip(out['discharge'], out['concentration']), 1):
+        zipped = zip(out['discharge'], out['concentration'])
+        for step, (discharge, concentration) in enumerate(zipped, 1):
             row['timestep'] = step
             row['catchment'] = id_
             row['discharge'] = discharge
@@ -125,9 +125,9 @@ class ModelRunner(object):
         The similary named `run_all()` method will close all HDF5 files
         after an exception in this method.
         """
-        start = default_timer()
         all_ids = find_ids(self.hdf_input)
         nids = len(all_ids)
+        prog = ProgressDisplay(nids)
         all_ids = iter(all_ids)
         free_paths = self.worker_paths[:]
         active_workers = {}
@@ -142,12 +142,13 @@ class ModelRunner(object):
                         done = True
                         break
                     counter += 1
-                    duration = default_timer() - start
-                    fraction = counter / nids
-                    total_time = duration / fraction
-                    print('{:7} {:7d} {:5.1f} {:5.1f} {:6.2f} % '.format(
-                        id_, counter, duration, total_time,
-                        fraction * 100), end='\r')
+                    #duration = default_timer() - start
+                    #fraction = counter / nids
+                    #total_time = duration / fraction
+                    #print('{:7} {:7d} {:5.1f} {:5.1f} {:6.2f} % '.format(
+                        #id_, counter, duration, total_time,
+                        #fraction * 100), end='\r')
+                    prog.show_progress(counter, additional=id_)
                     parameters, inputs = self._read_parameters_inputs(id_)
                     worker = Worker(id_, path, parameters, inputs,
                                     self.layout_xml_path,
@@ -169,6 +170,7 @@ class ModelRunner(object):
                 worker.join()
             while not self.queue.empty():
                 self._write_output(*self.queue.get())
+        prog.show_progress(counter, additional=id_, force=True)
         print()
 
     def run_all(self):
@@ -179,11 +181,13 @@ class ModelRunner(object):
         finally:
             self._close_files()
 
+
 class Worker(Thread):
     """One model run.
     """
     def __init__(self, id_, path, parameters, inputs, layout_xml_path,
                  layout_name_template, queue, debug=False):
+        # pylint: disable=too-many-arguments
         super().__init__()
         self.id = id_
         self.path = path
@@ -275,7 +279,11 @@ class Worker(Thread):
                         except PermissionError:
                             pass
 
+
 class OutputValues(tables.IsDescription):
+    # pylint: disable=too-few-public-methods
+    """Data model for output data table.
+    """
     timestep = tables.Int32Col()
     catchment = tables.StringCol(10)
     discharge = tables.Float64Col()
