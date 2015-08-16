@@ -12,6 +12,7 @@ def show_used_time(func):
     def wrapper(*args, **kwargs):
         start = default_timer()
         res = func(*args, **kwargs)
-        print('run time: {:.2} s'.format(default_timer() - start))
+        print()
+        print('run time: {:.1f} s'.format(default_timer() - start))
         return res
     return wrapper

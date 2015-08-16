@@ -11,7 +11,7 @@ def test_show_used_time_1(capfd):
     func()
 
     out, err = capfd.readouterr()
-    assert out == 'run time: 1.0 s\n'
+    assert out == '\nrun time: 1.0 s\n'
 
 
 def test_show_used_time_2(capfd):
@@ -23,5 +23,5 @@ def test_show_used_time_2(capfd):
     func()
 
     out, err = capfd.readouterr()
-    assert out == 'run time: 0.56 s\n'
+    assert out == '\nrun time: 0.6 s\n'
 
