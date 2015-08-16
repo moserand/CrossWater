@@ -19,7 +19,7 @@ catchment_path = /tmp/Daten/GIS/CATCHMENTS_Rhine.dbf
 
 
 [catchment_model]
-
+number_of_workers = 1
 
 [routing_model]
 
