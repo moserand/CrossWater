@@ -65,20 +65,36 @@ class Counts(object):
 class Connections(object):
     """Connections between catchments
     """
-    def __init__(self, catchment_dbf_file, active_ids=None):
+    def __init__(self, catchment_dbf_file, direction='down', active_ids=None):
         self.catchment_dbf_file = catchment_dbf_file
         self.active_ids = active_ids
-        self.ids, self.next_ids = self._read_id_association(catchment_dbf_file)
+        self._set_direction(direction)
+        self.ids, self.next_ids = self._read_id_association(
+            catchment_dbf_file, self.id_name, self.next_id_name)
         self._connections = None
         self._counts = None
 
+    def _set_direction(self, direction):
+        direction = direction.strip()
+        if direction == 'down':
+            self.id_name = 'WSO1_ID'
+            self.next_id_name = 'NEXTDOWNID'
+        elif direction == 'up':
+            self.id_name = 'NEXTDOWNID'
+            self.next_id_name = 'WSO1_ID'
+        else:
+            msg = ('Direction must be either "up" or "down". '
+                   'Found {}.', direction)
+            raise NameError(msg)
+
     @staticmethod
-    def _read_id_association(catchment_dbf_file):
+    def _read_id_association(catchment_dbf_file, id_name='WSO1_ID',
+                 next_id_name='NEXTDOWNID'):
         """Read IDs and down IDS from DBF file.
         """
-        data = read_dbf_cols(catchment_dbf_file, ['WSO1_ID', 'NEXTDOWNID'])
-        ids = data['WSO1_ID']
-        next_ids = data['NEXTDOWNID']
+        data = read_dbf_cols(catchment_dbf_file, [id_name, next_id_name])
+        ids = data[id_name]
+        next_ids = data[next_id_name]
         return ids, next_ids
 
     @property
