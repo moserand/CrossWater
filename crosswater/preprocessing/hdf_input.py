@@ -164,7 +164,7 @@ def get_first_ids(q_file_name, max_ids):
     """Get first `max_ids` from the dicharge file.
     """
     with open(q_file_name) as fobj:
-        header = next(fobj).split(';')
+        header = next(fobj).strip().split(';')
     return {int(entry[1:-1]) for entry in header[:max_ids]}
 
 
