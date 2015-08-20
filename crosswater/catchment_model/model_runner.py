@@ -142,12 +142,6 @@ class ModelRunner(object):
                         done = True
                         break
                     counter += 1
-                    #duration = default_timer() - start
-                    #fraction = counter / nids
-                    #total_time = duration / fraction
-                    #print('{:7} {:7d} {:5.1f} {:5.1f} {:6.2f} % '.format(
-                        #id_, counter, duration, total_time,
-                        #fraction * 100), end='\r')
                     prog.show_progress(counter, additional=id_)
                     parameters, inputs = self._read_parameters_inputs(id_)
                     worker = Worker(id_, path, parameters, inputs,
