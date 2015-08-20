@@ -65,7 +65,7 @@ class Counts(object):
 class Connections(object):
     """Connections between catchments
     """
-    def __init__(self, catchment_dbf_file, direction='down', active_ids=None):
+    def __init__(self, catchment_dbf_file, direction='up', active_ids=None):
         self.catchment_dbf_file = catchment_dbf_file
         self.active_ids = active_ids
         self._set_direction(direction)
@@ -76,10 +76,10 @@ class Connections(object):
 
     def _set_direction(self, direction):
         direction = direction.strip()
-        if direction == 'down':
+        if direction == 'up':
             self.id_name = 'WSO1_ID'
             self.next_id_name = 'NEXTDOWNID'
-        elif direction == 'up':
+        elif direction == 'down':
             self.id_name = 'NEXTDOWNID'
             self.next_id_name = 'WSO1_ID'
         else:
