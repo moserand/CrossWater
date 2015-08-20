@@ -9,7 +9,7 @@ from crosswater.tools.time_helper import ProgressDisplay
 
 
 def make_index(table):
-    """Create a complety sorted index (CSI) for `timestep`.
+    """Create a completely sorted index (CSI) for `timestep`.
     """
     col = table.cols.timestep
     if not col.index or not col.index.is_csi:
