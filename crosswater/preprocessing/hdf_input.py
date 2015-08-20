@@ -180,14 +180,15 @@ def preprocess(config_file):
     ids = None
     if max_ids:
         ids = get_first_ids(q_file_name, max_ids)
-
+    batch_size = config['preprocessing']['batch_size']
     strahler = get_strahler(config['preprocessing']['catchment_path'], ids)
     tot_areas = get_tot_areas(config['preprocessing']['catchment_path'], ids)
     appl_areas = get_appl_areas(config['preprocessing']['landuse_path'], ids)
     strahler, tot_areas, appl_areas = filter_strahler_lessthan_three(
         strahler, tot_areas, appl_areas)
     create_hdf_file(h5_file_name, tot_areas, appl_areas)
-    add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name)
+    add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
+                     batch_size=batch_size)
 
 
 if __name__ == '__main__':
