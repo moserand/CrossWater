@@ -80,7 +80,7 @@ class ProgressDisplay(object):
         self.additional_format = additional_format
         self.last_display = self.start
         self.total_width = len(str(total))
-        self.blank = ''
+        self.last_text_len = 0
 
     def show_progress(self, counter, force=False, additional=None):
         """Display a progress bar with time imformation inplace.
@@ -114,9 +114,11 @@ class ProgressDisplay(object):
         text += ' elapsed: ' + format_seconds(duration, fixed=True)
         text += ' remaining: ' + format_seconds(remaining, fixed=True)
         text += ' estimated: ' + format_seconds(estimated, fixed=True)
-        print(self.blank, end='\r')
+        text_len = len(text)
+        if self.last_text_len > text_len:
+            print(' ' * self.last_text_len, end='\r')
         print(text, end='\r')
-        self.blank = ' ' * len(text)
+        self.last_text_len = text_len
 
 if __name__ == '__main__':
 
@@ -125,9 +127,10 @@ if __name__ == '__main__':
         """Little test
         """
         import time
+        import random
         count = 1000
         prog = ProgressDisplay(count)
         for x in range(1, count):
             time.sleep(0.05)
-            prog.show_progress(x, 12)
+            prog.show_progress(x,  additional='#' * random.randint(1, 10))
     test()
