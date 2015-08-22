@@ -62,8 +62,8 @@ def get_appl_areas(dbf_file_name, ids=None):
     return get_value_by_id(dbf_file_name, 'LMAIZ', converter=1e6, ids=ids)
 
 
-def filter_strahler_lessthan_three(strahler, tot_areas, appl_areas):
-    """Use only catchments where STRAHLER is <= 3.
+def filter_strahler_lessthan(strahler, tot_areas, appl_areas, limit=3):
+    """Use only catchments where STRAHLER is <= limit.
     """
 
     def apply_filter(old_values):
@@ -71,7 +71,7 @@ def filter_strahler_lessthan_three(strahler, tot_areas, appl_areas):
         """
         return {id_: value for id_, value in old_values.items() if id_ in ids}
 
-    ids = {id_ for id_, value in strahler.items() if value <= 3}
+    ids = {id_ for id_, value in strahler.items() if value <= limit}
     return (apply_filter(strahler), apply_filter(tot_areas),
             apply_filter(appl_areas))
 
@@ -184,7 +184,8 @@ def preprocess(config_file):
     strahler = get_strahler(config['preprocessing']['catchment_path'], ids)
     tot_areas = get_tot_areas(config['preprocessing']['catchment_path'], ids)
     appl_areas = get_appl_areas(config['preprocessing']['landuse_path'], ids)
-    strahler, tot_areas, appl_areas = filter_strahler_lessthan_three(
+    strahler_limit = config['preprocessing']['strahler_limit']
+    strahler, tot_areas, appl_areas = filter_strahler_lessthan(
         strahler, tot_areas, appl_areas)
     create_hdf_file(h5_file_name, tot_areas, appl_areas)
     add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
