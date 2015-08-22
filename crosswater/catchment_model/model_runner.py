@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import time
 from threading import Thread
+import sys
 
 import pandas
 import tables
@@ -44,6 +45,9 @@ class ModelRunner(object):
         self.output_table = None
         self._init_hdf_output()
         self.queue = Queue()
+        self.use_wine = False
+        if sys.platform != 'win32':
+            self.use_wine = True
 
     def _make_template_name(self):
         """Create template for the name of the layout file.
@@ -148,7 +152,8 @@ class ModelRunner(object):
                                     self.layout_xml_path,
                                     self.layout_name_template,
                                     self.queue,
-                                    self.debug)
+                                    debug=self.debug,
+                                    use_wine=self.use_wine)
                     worker.start()
                     active_workers[path] = worker
 
@@ -180,7 +185,7 @@ class Worker(Thread):
     """One model run.
     """
     def __init__(self, id_, path, parameters, inputs, layout_xml_path,
-                 layout_name_template, queue, debug=False):
+                 layout_name_template, queue, debug=False, use_wine=False):
         # pylint: disable=too-many-arguments
         super().__init__()
         self.id = id_
@@ -191,6 +196,7 @@ class Worker(Thread):
         self.layout_name_template = layout_name_template
         self.queue = queue
         self.debug = debug
+        self.use_wine = use_wine
         self.output_path = self.path / 'out_{}.txt'.format(self.id)
         self.input_path = self.path / self.layout_name_template.format(
             id=self.id)
@@ -230,14 +236,20 @@ class Worker(Thread):
     def _execute(self):
         """Run external program for catchment model.
         """
+        cmd_list = ['server.exe', str(self.input_path), 'RUN',
+                    str(self.output_path)]
+        shell = True
+        if self.use_wine:
+            cmd_list = ['wine'] + cmd_list
+            shell = False
         try:
-            _ = subprocess.check_output(
-                ['server', str(self.input_path), 'RUN', str(self.output_path)],
-                stderr=subprocess.STDOUT, shell=True)
+            _ = subprocess.check_output(cmd_list, stderr=subprocess.STDOUT,
+                                        shell=shell)
         except subprocess.CalledProcessError as err:
-            print('error running model for ID', self.id)
+            print('error running model for ID {} with worker {}'.format(
+                  self.id, self.path))
             print('exit status:', err.returncode)
-            print(err)
+            print('err:', err)
             print()
 
     def run(self):
