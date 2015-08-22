@@ -3,6 +3,7 @@
 
 import sys
 
+from crosswater.read_config import read_config
 from crosswater.catchment_model.model_runner import ModelRunner
 from crosswater.catchment_model.convert_hdf import run_convertion
 from crosswater.tools.time_helper import show_used_time
@@ -12,9 +13,11 @@ from crosswater.tools.time_helper import show_used_time
 def run():
     """Run all catchment models.
     """
-    config = sys.argv[1]
-    print('runing with {} ...'.format(config))
-    runner = ModelRunner(config)
+    config_file = sys.argv[1]
+    config = read_config(config_file)
+    workers = config['catchment_model']['number_of_workers']
+    print('runing with {} using {} workers ...'.format(config_file, workers))
+    runner = ModelRunner(config_file)
     runner.run_all()
 
     run_convertion(config, batch_size=100)
