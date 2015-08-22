@@ -20,7 +20,7 @@ def run():
     runner = ModelRunner(config_file)
     runner.run_all()
 
-    run_convertion(config, batch_size=100)
+    run_convertion(config_file, batch_size=100)
 
 
 if __name__ == '__main__':
