@@ -66,9 +66,16 @@ def get_strahler(dbf_file_name, ids=None):
 def get_appl_areas(dbf_file_name, ids=None):
     """Returns a dict with catchment ids as keys and maiz areas as values."""
     return get_value_by_id(dbf_file_name, 'LMAIZ', converter=1e6, ids=ids)
+    
+
+def get_appl_rates(dbf_file_name, ids=None):
+    """Returns a dict with catchments ids as keys and application rate as 
+    values.
+    """
+    return get_value_by_id(dbf_file_name, 'appl_rates', ids=ids)
 
 
-def filter_strahler_lessthan(strahler, tot_areas, appl_areas, strahler_limit=3):
+def filter_strahler_lessthan(strahler, tot_areas, appl_areas, appl_rates, strahler_limit=3):
     """Use only catchments where STRAHLER is <= limit.
     """
 
@@ -79,7 +86,7 @@ def filter_strahler_lessthan(strahler, tot_areas, appl_areas, strahler_limit=3):
     
     ids = {id_ for id_, value in strahler.items() if value <= strahler_limit}
     return (apply_filter(strahler), apply_filter(tot_areas),
-            apply_filter(appl_areas))
+            apply_filter(appl_areas), apply_filter(appl_rates))
 
 
 class Parameters(tables.IsDescription):
@@ -90,7 +97,7 @@ class Parameters(tables.IsDescription):
     unit = tables.StringCol(20)
 
 
-def create_hdf_file(file_name, tot_areas, appl_areas):
+def create_hdf_file(file_name, tot_areas, appl_areas, appl_rates):
     """Create HDF5 file and add areas as parameters."""
     ids = sorted(tot_areas.keys())
     h5_file = tables.open_file(file_name, mode='w',
@@ -104,6 +111,7 @@ def create_hdf_file(file_name, tot_areas, appl_areas):
                                      'constant parameters')
         tot_area = tot_areas[id_]
         appl_area = appl_areas[id_]
+        appl_rate = appl_rates[id_]
         
         # fill parameter table by rows
         row = table.row
@@ -114,6 +122,10 @@ def create_hdf_file(file_name, tot_areas, appl_areas):
         row['name'] = 'A_appl'
         row['value'] = appl_area
         row['unit'] = 'm**2'
+        row.append()
+        row['name'] = 'R_appl'
+        row['value'] = appl_rate
+        row['unit'] = 'g/m**2'
         row.append()
     h5_file.close()
 
@@ -193,10 +205,11 @@ def preprocess(config_file):
     strahler = get_strahler(config['preprocessing']['catchment_path'], ids)
     tot_areas = get_tot_areas(config['preprocessing']['catchment_path'], ids)
     appl_areas = get_appl_areas(config['preprocessing']['landuse_path'], ids)
+    appl_rates = get_appl_rates(config['preprocessing']['micropollutant_path'], ids)
     strahler_limit = config['preprocessing']['strahler_limit']
-    strahler, tot_areas, appl_areas = filter_strahler_lessthan(
-        strahler, tot_areas, appl_areas, strahler_limit)
-    create_hdf_file(h5_file_name, tot_areas, appl_areas)
+    strahler, tot_areas, appl_areas, appl_rates = filter_strahler_lessthan(
+        strahler, tot_areas, appl_areas, appl_rates, strahler_limit)
+    create_hdf_file(h5_file_name, tot_areas, appl_areas, appl_rates)
     add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
                      batch_size=batch_size)
 
