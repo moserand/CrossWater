@@ -8,7 +8,7 @@ import os
 
 
 def make_abs_paths(config, section_name):
-    """Make all paths absoulte and turn section into dict.
+    """Make all relative paths to absoulte paths and turn section into dict.
     """
     sec_dict = dict(config[section_name].items())
     base_path = os.getcwd()
@@ -19,7 +19,7 @@ def make_abs_paths(config, section_name):
 
 
 def read_config(file_name_or_fobj):
-    """Read the config file
+    """Read the config file and return dictionary of configurations.
     """
     config = configparser.ConfigParser()
     if isinstance(file_name_or_fobj, str):

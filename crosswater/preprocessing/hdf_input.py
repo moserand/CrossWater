@@ -19,8 +19,11 @@ from crosswater.tools.time_helper import ProgressDisplay
 
 def read_dbf_cols(dbf_file_name, col_names=None):
     """Returns a dictionary with column names as keys and lists as values.
-
+    
     Returns dict with all columns if `col_names` is false.
+    
+    dbf_file_name is a string
+    col_names is a list containing strings
     """
     dbf_file = dbflib.DbfReader(dbf_file_name)
     dbf_file.read_all()
@@ -38,6 +41,9 @@ def read_dbf_col(dbf_file_name, col_name):
 
 def get_value_by_id(dbf_file_name, col_name, converter=1, ids=None):
     """Returns a dict catchment-id: value
+    
+    converter for units with default value 1
+    ids to filter (e.g. only Strahler)
     """
     data = read_dbf_cols(dbf_file_name, ['WSO1_ID', col_name])
     res = {id_: value * converter for id_, value in
@@ -62,7 +68,7 @@ def get_appl_areas(dbf_file_name, ids=None):
     return get_value_by_id(dbf_file_name, 'LMAIZ', converter=1e6, ids=ids)
 
 
-def filter_strahler_lessthan(strahler, tot_areas, appl_areas, limit=3):
+def filter_strahler_lessthan(strahler, tot_areas, appl_areas, strahler_limit=3):
     """Use only catchments where STRAHLER is <= limit.
     """
 
@@ -70,8 +76,8 @@ def filter_strahler_lessthan(strahler, tot_areas, appl_areas, limit=3):
         """Filter for ids.
         """
         return {id_: value for id_, value in old_values.items() if id_ in ids}
-
-    ids = {id_ for id_, value in strahler.items() if value <= limit}
+    
+    ids = {id_ for id_, value in strahler.items() if value <= strahler_limit}
     return (apply_filter(strahler), apply_filter(tot_areas),
             apply_filter(appl_areas))
 
@@ -186,7 +192,7 @@ def preprocess(config_file):
     appl_areas = get_appl_areas(config['preprocessing']['landuse_path'], ids)
     strahler_limit = config['preprocessing']['strahler_limit']
     strahler, tot_areas, appl_areas = filter_strahler_lessthan(
-        strahler, tot_areas, appl_areas)
+        strahler, tot_areas, appl_areas, strahler_limit)
     create_hdf_file(h5_file_name, tot_areas, appl_areas)
     add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
                      batch_size=batch_size)
