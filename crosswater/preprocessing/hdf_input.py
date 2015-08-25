@@ -96,13 +96,16 @@ def create_hdf_file(file_name, tot_areas, appl_areas):
     h5_file = tables.open_file(file_name, mode='w',
                                title='Input data for catchment models.')
     for id_ in ids:
+        # create new group (where, name, title)        
         group = h5_file.create_group('/', 'catch_{}'.format(id_),
                                      'catchment {}'.format(id_))
+        # create new table (where, name, description, title)
         table = h5_file.create_table(group, 'parameters', Parameters,
                                      'constant parameters')
         tot_area = tot_areas[id_]
         appl_area = appl_areas[id_]
-
+        
+        # fill parameter table by rows
         row = table.row
         row['name'] = 'A_tot'
         row['value'] = tot_area
