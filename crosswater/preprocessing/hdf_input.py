@@ -63,9 +63,16 @@ def get_strahler(dbf_file_name, ids=None):
     return get_value_by_id(dbf_file_name, 'STRAHLER', ids=ids)
 
 
-def get_appl_areas(dbf_file_name, ids=None):
-    """Returns a dict with catchment ids as keys and maiz areas as values."""
-    return get_value_by_id(dbf_file_name, 'LMAIZ', converter=1e6, ids=ids)
+def get_appl_areas(dbf_file_name, crops, ids=None):
+    """Returns a dict with catchment ids as keys and total areas as values.
+
+    Crop areas are added to total area.    
+    """
+    res = get_value_by_id(dbf_file_name, crops[0], converter=1e6, ids=ids)
+    for crop in crops[1:]:
+        res_crop = get_value_by_id(dbf_file_name, crop, converter=1e6, ids=ids)
+        res = {id_: res.get(id_, 0) + res_crop.get(id_, 0) for id_ in set(res) & set(res_crop) }
+    return res
     
 
 def get_appl_rates(dbf_file_name, ids=None):
@@ -204,7 +211,8 @@ def preprocess(config_file):
     batch_size = config['preprocessing']['batch_size']
     strahler = get_strahler(config['preprocessing']['catchment_path'], ids)
     tot_areas = get_tot_areas(config['preprocessing']['catchment_path'], ids)
-    appl_areas = get_appl_areas(config['preprocessing']['landuse_path'], ids)
+    crops = config['preprocessing']['crops'].split(', ')    
+    appl_areas = get_appl_areas(config['preprocessing']['landuse_path'], crops, ids)
     appl_rates = get_appl_rates(config['preprocessing']['micropollutant_path'], ids)
     strahler_limit = config['preprocessing']['strahler_limit']
     strahler, tot_areas, appl_areas, appl_rates = filter_strahler_lessthan(

@@ -40,7 +40,7 @@
 
 		<attribute> {id} </attribute>
 
-		<parameter name="M_totalperA" value="0.0121902875783663" /> g [/m2]
+		<parameter name="M_totalperA" value="{R_appl:.10f}" /> g [/m2]
 
 		<parameter name="M_greenperA" value="0" /> g [/m2]
 

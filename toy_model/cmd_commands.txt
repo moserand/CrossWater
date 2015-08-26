@@ -1,4 +1,16 @@
+
+Set pythonpath:
+---------------
 set PYTHONPATH=e:\moserand\CrossWater\4_Model\4_2_Mass_Flow\crosswater
 
 
+run preprocessing:
+------------------
 python e:\moserand\CrossWater\4_Model\4_2_Mass_Flow\crosswater\crosswater\preprocessing\hdf_input.py config.ini
+
+
+run model:
+-----------
+python e:\moserand\CrossWater\4_Model\4_2_Mass_Flow\crosswater\crosswater\catchment_model\run.py config.ini
+
+python e:\moserand\CrossWater\4_Model\4_2_Mass_Flow\crosswater\crosswater\catchment_model\run.py config.ini

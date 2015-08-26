@@ -16,7 +16,7 @@ def run():
     config_file = sys.argv[1]
     config = read_config(config_file)
     workers = config['catchment_model']['number_of_workers']
-    print('runing with {} using {} workers ...'.format(config_file, workers))
+    print('running with {} using {} workers ...'.format(config_file, workers))
     runner = ModelRunner(config_file)
     runner.run_all()
 

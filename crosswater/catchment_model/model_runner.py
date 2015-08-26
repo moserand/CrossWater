@@ -132,7 +132,7 @@ class ModelRunner(object):
         all_ids = find_ids(self.hdf_input)
         nids = len(all_ids)
         prog = ProgressDisplay(nids)
-        all_ids = iter(all_ids)
+        all_ids = iter(all_ids)  # iterator of all_ids
         free_paths = self.worker_paths[:]
         active_workers = {}
         done = False
@@ -213,8 +213,9 @@ class Worker(Thread):
         """Create the XML file for the model layout.
         """
         # pylint: disable=star-args
-        with open(str(self.layout_xml_path))as fobj:
+        with open(str(self.layout_xml_path)) as fobj:
             layout_template = fobj.read()
+        # substitution of {id}, {input_file_name} and {parameter}
         layout = layout_template.format(id=self.id,
                                         input_file_name=self.txt_input_path,
                                         **parameters)
