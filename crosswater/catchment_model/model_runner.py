@@ -122,6 +122,7 @@ class ModelRunner(object):
             row['catchment'] = id_
             row['discharge'] = discharge
             row['concentration'] = concentration
+            row['load'] = concentration * discharge * 86400 * 10e-9
             row.append()
 
     def _run_all(self):
@@ -293,5 +294,6 @@ class OutputValues(tables.IsDescription):
     """
     timestep = tables.Int32Col()
     catchment = tables.StringCol(10)
-    discharge = tables.Float64Col()
-    concentration = tables.Float64Col()
+    discharge = tables.Float64Col()       # m**3/s
+    concentration = tables.Float64Col()   # ng/l
+    load = tables.Float64Col()            # kg/d

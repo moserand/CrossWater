@@ -79,7 +79,7 @@ def get_appl_rates(dbf_file_name, ids=None):
     """Returns a dict with catchments ids as keys and application rate as 
     values.
     """
-    return get_value_by_id(dbf_file_name, 'appl_rates', ids=ids)
+    return get_value_by_id(dbf_file_name, 'APPL_RATES', ids=ids)
 
 
 def filter_strahler_lessthan(strahler, tot_areas, appl_areas, appl_rates, strahler_limit=3):
@@ -214,7 +214,7 @@ def preprocess(config_file):
     crops = config['preprocessing']['crops'].split(', ')    
     appl_areas = get_appl_areas(config['preprocessing']['landuse_path'], crops, ids)
     appl_rates = get_appl_rates(config['preprocessing']['micropollutant_path'], ids)
-    strahler_limit = config['preprocessing']['strahler_limit']
+    strahler_limit = config['preprocessing']['strahler_limit'] 
     strahler, tot_areas, appl_areas, appl_rates = filter_strahler_lessthan(
         strahler, tot_areas, appl_areas, appl_rates, strahler_limit)
     create_hdf_file(h5_file_name, tot_areas, appl_areas, appl_rates)

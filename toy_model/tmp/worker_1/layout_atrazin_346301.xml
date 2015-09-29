@@ -58,7 +58,7 @@
 
 		<parameter name="A_tot" value="6120000.00" /> units: m2
 
-		<parameter name="A_appl" value="306600.00" />
+		<parameter name="A_appl" value="1957200.00" />
 
 		<parameter name="A_green" value="0.0" />
 
