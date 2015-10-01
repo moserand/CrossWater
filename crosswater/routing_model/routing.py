@@ -3,6 +3,7 @@
 
 from collections import defaultdict
 import sys
+import itertools
 
 from crosswater.read_config import read_config
 from crosswater.preprocessing.hdf_input import read_dbf_cols
@@ -63,7 +64,7 @@ class Counts(object):
 
 
 class Connections(object):
-    """Connections between catchments
+    """Connections between catchments (only for active_ids)  
     """
     def __init__(self, catchment_dbf_file, direction='up', active_ids=None):
         self.catchment_dbf_file = catchment_dbf_file
@@ -105,6 +106,8 @@ class Connections(object):
             connections = {}
             for id_, next_id in zip(self.ids, self.next_ids):
                 connections.setdefault(next_id, []).append(id_)
+            if self.active_ids:
+                connections = dict((id_,ids) for id_, ids in connections.items() if id_ in self.active_ids)
             self._connections = connections
         return self._connections
 
@@ -117,14 +120,48 @@ class Connections(object):
         return self._counts
 
 
+class UpstreamCatchments(object):
+    """Returns dict with outlet ID and its upstream ID's
+    """
+    def __init__(self, catchment_dbf_file, id_outlets):
+        self.id_outlets = id_outlets
+        self.ids = self.upstream_dict(catchment_dbf_file, id_outlets)
+
+    def upstream_ids(self, catchment_dbf_file, id_outlet):
+        """
+        """
+        conn = Connections(catchment_dbf_file)
+        ids = [id_outlet]
+        outlets = [id_outlet]
+        while outlets:
+            ids_upstream = [conn.connections.get(id_) for id_ in outlets]
+            ids_upstream = list(filter(None.__ne__, ids_upstream))
+            ids_upstream = list(itertools.chain(*ids_upstream))
+            ids.extend(ids_upstream)
+            outlets = ids_upstream
+        return ids
+    
+    def upstream_dict(self, catchment_dbf_file, id_outlets):
+        """
+        """
+        ids = {}
+        for id_ in id_outlets:
+            ids[id_] = self.upstream_ids(catchment_dbf_file, id_)
+        return ids
+ 
+ 
+ 
+
+
 def run():
     """Run the model.
     """
     config_file = sys.argv[1]
     config = read_config(config_file)
     catchment_dbf_file = config['preprocessing']['catchment_path']
-    conn = Connections(catchment_dbf_file)
+    conn = Connections(catchment_dbf_file, direction="up")
     print(conn.counts)
+   #print(conn.connections)
 
 
 if __name__ == '__main__':
