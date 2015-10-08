@@ -64,7 +64,7 @@ class Counts(object):
 
 
 class Connections(object):
-    """Connections between catchments (only for active_ids)  
+    """Connections between catchments
     """
     def __init__(self, catchment_dbf_file, direction='up', active_ids=None):
         self.catchment_dbf_file = catchment_dbf_file
@@ -96,6 +96,10 @@ class Connections(object):
         data = read_dbf_cols(catchment_dbf_file, [id_name, next_id_name])
         ids = data[id_name]
         next_ids = data[next_id_name]
+        if all(isinstance(id_, int) for id_ in ids):
+            ids = [str(id_)for id_ in ids]
+            next_ids = [str(id_) for id_ in next_ids]
+        
         return ids, next_ids
 
     @property
