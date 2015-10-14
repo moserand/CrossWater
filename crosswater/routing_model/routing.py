@@ -169,16 +169,16 @@ class OutputValues(tables.IsDescription):
 class LoadAggregation(object):
     """Aggregating loads per timestep for the tributary catchment along the river
     """
-    def __init__(self, config_file, catchment_dbf_file):
+    def __init__(self, config_file):
         config = read_config(config_file)
         self.input_file_name = config['routing_model']['steps_input_path']
         self.output_file_name = config['routing_model']['steps_output_path']
         self.riversegments_name = config['routing_model']['riversegments_path']
+        self.catchment_dbf_file = config['preprocessing']['catchment_path']
         self.ids_riversegments = self.read_ids(self.riversegments_name, 'WSO1_ID')
-        self._ids_tributary_outlets(catchment_dbf_file)
-        self.ids_tributaries = self.ids_tributaries(catchment_dbf_file)
-        self.aggregate(total=2) #365*25)
-        
+        self._ids_tributary_outlets()
+        self.ids_tributaries = self.ids_tributaries()
+                
     def _open_files(self):
         """Open HDF5 input and output files.
         """
@@ -200,18 +200,17 @@ class LoadAggregation(object):
             ids = [str(id_)for id_ in ids]     
         return ids
     
-    def ids_tributaries(self, catchment_dbf_file):
+    def ids_tributaries(self):
         """Return dictionary of catchments of all tributary upstream areas
         """
         print('get catchments of tributary upstream areas...')
-        ids_tributaries = UpstreamCatchments(catchment_dbf_file, self._ids_tributary_outlets)
+        ids_tributaries = UpstreamCatchments(self.catchment_dbf_file, self._ids_tributary_outlets)
         return ids_tributaries.ids
 
-    def _ids_tributary_outlets(self, catchment_dbf_file):
+    def _ids_tributary_outlets(self):
         """Return all catchments of tributary outlets
         """
-        print('get catchments of tributary outlets...')
-        conn = Connections(catchment_dbf_file, active_ids = self.ids_riversegments)
+        conn = Connections(self.catchment_dbf_file, active_ids = self.ids_riversegments)
         id_outlets = list(itertools.chain(*conn.connections.values()))
         self._ids_tributary_outlets = [id_ for id_ in id_outlets if id_ not in self.ids_riversegments]
      
@@ -243,21 +242,28 @@ class LoadAggregation(object):
             self._write_output(step, in_table, outputvalues)
             out_table.flush()
         self._close_files()
+        print()
         print(prog.last_display)
+    
+    def run(self):
+        """Run thread.
+        """
+        self.aggregate(total=2) #365*25)
 
 
 
-def run():
-    """Run the model.
-    """
-    config_file = sys.argv[1]
-    config = read_config(config_file)
-    catchment_dbf_file = config['preprocessing']['catchment_path']
-    conn = Connections(catchment_dbf_file, direction="up")
-    print(conn.counts)
-   #print(conn.connections)
-
-
-if __name__ == '__main__':
-
-    run()
+#def run():
+#    """Run the model.
+#    """
+#    config_file = sys.argv[1]
+##    config = read_config(config_file)
+##    catchment_dbf_file = config['preprocessing']['catchment_path']
+##    conn = Connections(catchment_dbf_file, direction="up")
+##    print(conn.counts)
+#    aggregation = LoadAggregation(config_file)    
+#    aggregation.run()
+#    
+#
+#if __name__ == '__main__':
+#
+#    run()
