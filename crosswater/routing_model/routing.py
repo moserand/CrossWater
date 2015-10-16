@@ -162,7 +162,7 @@ class OutputValues(tables.IsDescription):
     """
     catchment_outlet = tables.StringCol(10) # WSO1_ID
     discharge = tables.Float64Col()         # m**3/s
-    load = tables.Float64Col()              # kg/d 
+    load_aggregated = tables.Float64Col()              # kg/d 
     
     
 
@@ -214,7 +214,7 @@ class LoadAggregation(object):
         id_outlets = list(itertools.chain(*conn.connections.values()))
         self._ids_tributary_outlets = [id_ for id_ in id_outlets if id_ not in self.ids_riversegments]
      
-    def _write_output(self,step, in_table, outputvalues):
+    def _write_output(self, step, in_table, outputvalues):
         """Write output per timestep
         """
         for id_outlet in self._ids_tributary_outlets:
@@ -222,14 +222,13 @@ class LoadAggregation(object):
                 continue
             ids = [str(id_) for id_ in self.ids_tributaries[id_outlet]]
             outputvalues['catchment_outlet'] = id_outlet
-            outputvalues['load'] = in_table["load"][in_table['catchment'].isin(ids)].sum()
+            outputvalues['load_aggregated'] = in_table["load"][in_table['catchment'].isin(ids)].sum()
             outputvalues['discharge'] = in_table["discharge"][in_table['catchment']==str(id_outlet)]
             outputvalues.append()
 
     def aggregate(self, total):
         """Aggregate loads for every timestep
         """
-        self._open_files()
         print('aggregate loads and write to output file...')
         prog = ProgressDisplay(total)
         for step in range(0,total):
@@ -241,14 +240,38 @@ class LoadAggregation(object):
             outputvalues = out_table.row
             self._write_output(step, in_table, outputvalues)
             out_table.flush()
-        self._close_files()
         print()
         print(prog.last_display)
+    
+    def table_outlets(self):
+        """Table with catchment ids and ids of outlet.
+        """
+        ids=list(itertools.chain(*self.ids_tributaries.values()))
+        table = np.empty(shape=(len(ids),1), dtype=[('catchment', 'S6'),('catchment_outlet', 'S6')])
+        for i in range(len(ids)):
+            id_ = ids[i]
+            table['catchment'][i][0] = id_
+            key=[k for k, v in self.ids_tributaries.items() if id_ in v]
+            table['catchment_outlet'][i][0] = key[0]
+        self.hdf_output.create_table('/', 'table_outlets', table)
+        self.write_table_csv(table)
+    
+    def write_table_csv(self, table):
+        """Write  catchment ids and ids of outlet to csv.
+        """
+        with open(self.csv_file_name, "w") as fp:
+            fp.write('catchment, catchment_outlet\n')
+            fp.write('\n'.join('{}, {}'.format(int(x[0][0]),int(x[0][1])) for x in table))
+    
     
     def run(self):
         """Run thread.
         """
-        self.aggregate(total=2) #365*25)
+        self._open_files()
+        self.table_outlets()
+        #self.aggregate(total=2) #365*25)
+        self._close_files()
+
 
 
 
