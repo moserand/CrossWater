@@ -173,7 +173,7 @@ class LoadAggregation(object):
         config = read_config(config_file)
         self.input_file_name = config['routing_model']['steps_input_path']
         self.output_file_name = config['routing_model']['steps_output_path']
-        self.csv_file_name = config['routing_model']['csv_output_path']
+        #self.csv_file_name = config['routing_model']['csv_output_path']
         self.riversegments_dbf = config['routing_model']['riversegments_path']
         self.catchment_dbf_file = config['preprocessing']['catchment_path']
         self.tributaries = Tributaries(config_file)
@@ -231,7 +231,7 @@ class LoadAggregation(object):
             key=[k for k, v in self.tributaries.ids_tributaries.items() if id_ in v]
             table['catchment_outlet'][i][0] = key[0]
         self.hdf_output.create_table('/', 'table_outlets', table)
-        self.write_table_csv(table)
+        #self.write_table_csv(table)
     
     def write_table_csv(self, table):
         """Write  catchment ids and ids of outlet to csv.
@@ -262,7 +262,7 @@ class Tributaries(object):
         self.areas = self.get_value_by_id('AREA')
         print('get catchments of tributary upstream areas...', end='')
         self.ids_riversegments = self.read_ids(self.riversegments_dbf, 'WSO1_ID')
-        self._ids_tributary_outlets()
+        self.ids_tributary_outlets()
         self.ids_tributaries = self.ids_tributaries()
         self.areas_tributaries = self.areas_tributaries()
         print('Done')
@@ -291,18 +291,18 @@ class Tributaries(object):
     def ids_tributaries(self):
         """Return dictionary of catchments of all tributary upstream areas
         """
-        ids_tributaries = UpstreamCatchments(self.catchment_dbf_file, self._ids_tributary_outlets)
+        ids_tributaries = UpstreamCatchments(self.catchment_dbf_file, self.ids_tributary_outlets)
         print()
         return ids_tributaries.ids
 
-    def _ids_tributary_outlets(self):
+    def ids_tributary_outlets(self):
         """Return all catchments of tributary outlets.
         
            Tributary outlets are directly connected downstream with the riversegments.
         """
         conn = Connections(self.catchment_dbf_file, active_ids = self.ids_riversegments)
         id_outlets = list(itertools.chain(*conn.connections.values()))
-        self._ids_tributary_outlets = [id_ for id_ in id_outlets if id_ not in self.ids_riversegments]
+        self.ids_tributary_outlets = [id_ for id_ in id_outlets if id_ not in self.ids_riversegments]
     
     def areas_tributaries(self):
         """Total area of catchments within tributary.
@@ -322,18 +322,18 @@ class Compartments(object):
     """Compartments for Aquasim.
     
         Compartments are river reaches that are connected with advective links 
-        and may have diffusive links alongside. One compartment exists of one or more
+        and may have lateral links alongside. One compartment exists of one or more
         riversegments and does not contain any river junctions.
         The river network is at first divided at the river junctions, if the 
         desired number of compartments is higher, the river reaches are further 
         divided at the inlets of the largest tributaries.
     """
-    def __init__(self, config_file, areas_tributaries):
+    def __init__(self, config_file, Tributaries):
+        self.areas_tributaries = Tributaries.areas_tributaries
         config = read_config(config_file)
-        self.areas_tributaries = areas_tributaries
         self.riversegments_dbf = config['routing_model']['riversegments_path']
         self.catchment_dbf_file = config['preprocessing']['catchment_path']
-        self.nr_comp = int(config['routing_model']['nr_compartments'])   ##### TODO: default 0
+        self.nr_comp = int(config['routing_model']['nr_compartments'])   # TODO: default 0
         self.ids_riversegments = self.read_ids(self.riversegments_dbf, 'WSO1_ID')
         self.ids_junctions = self.get_junctions()
         self.ids_headwater = self.get_headwater() 
@@ -386,13 +386,16 @@ class Compartments(object):
     def get_advective_inlets(self):
         """Returns catchments of largest advective tributary inlets, that are not in ids_headwater.
         """
-        outlets = sorted(self.areas_tributaries, key=self.areas_tributaries.get, reverse=True)
         ids_advective_inlets = []
+        s_outlets = set(self.areas_tributaries.keys())
+        exclude = Connections(self.catchment_dbf_file, direction='down', active_ids=self.ids_headwater).connections.values()
+        s_exclude=set(list(itertools.chain(*exclude)))
+        s_outlets.discard(s_exclude)
+        keys = [key for key in self.areas_tributaries.keys() if key in s_outlets]
+        outlets = sorted(keys, key=self.areas_tributaries.get, reverse=True)[0:self.nr_div]  
         if outlets:
             conn = Connections(self.catchment_dbf_file, direction='down', active_ids=outlets)
-            inlets = list(itertools.chain(*conn.connections.values()))
-            inlets_along=[inlet for inlet in inlets if inlet not in self.ids_headwater]
-            ids_advective_inlets = inlets_along[0:self.nr_div]
+            ids_advective_inlets = list(itertools.chain(*conn.connections.values()))
         return ids_advective_inlets
     
     def ids_up(self):
@@ -400,7 +403,9 @@ class Compartments(object):
         
             ids of junctions, ids of advective tributary inlets, ids of headwater catchments
         """
-        return self.ids_advective_inlets + self.ids_headwater + self.ids_junctions
+        ids_up = self.ids_advective_inlets + self.ids_headwater + self.ids_junctions
+        ids_up = list(set(ids_up))                  #TODO: remove duplicated  beforehand (ids in junctions and advective)
+        return ids_up
     
     def ids_down(self):
         """Last downstream catchment of every compartment.
@@ -408,7 +413,7 @@ class Compartments(object):
         conn = Connections(self.riversegments_dbf, direction='up', active_ids=self.ids_up)
         ids_down = list(itertools.chain(*conn.connections.values()))
         conn = Connections(self.riversegments_dbf, direction='down')
-        id_last = [k for k, v in conn.connections.items() if v==['-9999']] 
+        id_last = [k for k, v in conn.connections.items() if v==['-9999']]
         return ids_down + id_last
     
     def compartments(self):
@@ -422,32 +427,24 @@ class Compartments(object):
         for id_ in self.ids_up: 
             comp_name.append('C'+id_)
             ids = []
+            ids.append(id_)
             nextid = conn.connections.get(id_)[0]
-            ids.append(nextid)
             while nextid not in self.ids_up and nextid != '-9999':
                 ids.append(nextid)
                 nextid = conn.connections.get(nextid)[0]
             comp_ids.append(ids)
         return dict(zip(comp_name, comp_ids))
 
-
-   
-
-
-
-
-        
-
-     
-    
-    
-    def run(self):
-        """Run thread.
+    def write_compartments_csv(self, csv_file_name):
+        """Write compartment names and catchments to file specified as argument.
         """
-        self._open_files()
-        self.table_outlets()
-        self.aggregate(total=2) #365*24)
-        self._close_files()
+        with open(csv_file_name, "w") as fp:
+            fp.write('compartment, catchment\n')
+            for key in self.compartments.keys():
+                values = self.compartments[key]
+                [fp.write('{}, {}\n'.format(key, value)) for value in values]
+  
+    
 
 
 

@@ -38,7 +38,7 @@ class ModelRunner(object):
         self.layout_xml_path = Path(
             config['catchment_model']['layout_xml_path'])
         self.number_of_workers = config['catchment_model']['number_of_workers']
-        self.program_path = Path(__file__).parents[2] / Path('program')
+        self.program_path = Path(__file__).parents[2] / Path('substance_program')
         self._make_template_name()
         self._open_files()
         self._prepare_tmp()
