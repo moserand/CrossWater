@@ -166,8 +166,8 @@ class OutputValues(tables.IsDescription):
     
     
 
-class LoadAggregation(object):
-    """Aggregating loads per timestep for the tributary catchment along the river
+class LoadAggregationTributaries(object):
+    """Aggregating loads per timestep for the tributaries along the river
     """
     def __init__(self, config_file):
         config = read_config(config_file)
@@ -240,7 +240,6 @@ class LoadAggregation(object):
             fp.write('catchment, catchment_outlet\n')
             fp.write('\n'.join('{}, {}'.format(int(x[0][0]),int(x[0][1])) for x in table))
     
-    
     def run(self):
         """Run thread.
         """
@@ -252,7 +251,7 @@ class LoadAggregation(object):
     
         
 class Tributaries(object):
-    """
+    """Area and ids of the tributaries to the rivernetwork 
     """
     def __init__(self, config_file):
         config = read_config(config_file)
@@ -443,8 +442,108 @@ class Compartments(object):
             for key in self.compartments.keys():
                 values = self.compartments[key]
                 [fp.write('{}, {}\n'.format(key, value)) for value in values]
-  
+ 
+ 
+   
+class Links(Compartments):
+    """Links between compartments for Aquasim.
     
+        How are the compartments linked together in Aquasim and
+        which primary catchments are upstream or lateral input
+        to a compartment.
+    """
+    def __init__(self, config_file, Tributaries):
+        self.areas_tributaries = Tributaries.areas_tributaries
+        self.ids_tributaries = Tributaries.ids_tributaries
+        self.ids_tributary_outlets = Tributaries.ids_tributary_outlets       
+        Compartments.__init__(self, config_file, Tributaries)
+        self.compartment_links = self.compartment_links()
+        self.upstream_tributaries = self.upstream_tributaries()
+        self.lateral_tributaries = self.lateral_tributaries()
+        self.lateral_input = self.lateral_input()
+        self.upstream_input = self.upstream_input()
+        
+    def compartment_links(self):
+        """Table with name of link, from- and to-compartment name.
+        """
+        columns = ['Name', 'fromCompart', 'toCompart']
+        index = range(len(self.ids_down)-1)
+        df = pandas.DataFrame(columns=columns, index = index)
+        i=0
+        for compartment in self.compartments:
+            id_last = self.compartments.get(compartment)[-1]
+            toCompart = Connections(self.riversegments_dbf, direction='down', active_ids=id_last).connections.values()
+            toCompart = list(itertools.chain(*toCompart))[0]
+            if toCompart not in self.ids_riversegments:
+                continue
+            df.Name[i] = 'L' + id_last
+            df.fromCompart[i] = compartment
+            df.toCompart[i] = "C"+toCompart
+            i+=1
+        return df
+    
+    def upstream_tributaries(self):
+        """Dictionary with compartment name as key and tributary outlets as value.
+        """
+        compartments = []
+        ids_upstream_input = []
+        for compartment in self.compartments:
+            id_first = self.compartments.get(compartment)[0]
+            conn = Connections(self.catchment_dbf_file, direction='up', active_ids=id_first)
+            outlets = list(itertools.chain(*conn.connections.values()))
+            outlets_up = [id_ for id_ in outlets if id_ not in self.ids_riversegments]
+            compartments.append(compartment)
+            ids_upstream_input.append(outlets_up)
+        return dict(zip(compartments, ids_upstream_input))
+    
+    def lateral_tributaries(self):
+        """Dictionary with compartment name as key and tributary outlets as value.
+        """
+        compartments = []
+        ids_lateral_input = []
+        for compartment in self.compartments:
+            id_lat = self.compartments.get(compartment)[1:]
+            if not id_lat:
+                compartments.append(compartment)
+                ids_lateral_input.append([])
+                continue
+            conn = Connections(self.catchment_dbf_file, direction='up', active_ids=id_lat)
+            outlets = list(itertools.chain(*conn.connections.values()))
+            outlets_lat = [id_ for id_ in outlets if id_ not in self.ids_riversegments]
+            compartments.append(compartment)
+            ids_lateral_input.append(outlets_lat)
+        return dict(zip(compartments, ids_lateral_input))
+    
+    def upstream_input(self):
+        """Dictionary with all upstream ids of a compartment.
+        """
+        compartments = []
+        up_ids =[]
+        for upstream in iter(self.upstream_tributaries.items()):
+            compartment = upstream[0]
+            up_trib = upstream[1]    
+            up_ids_ = []
+            [up_ids_.append(tributaries.ids_tributaries.get(id_)) for id_ in up_trib]
+            up_ids_ = list(itertools.chain(*up_ids_))
+            compartments.append(compartment)
+            up_ids.append(up_ids_)
+        return dict(zip(compartments, up_ids)) 
+ 
+    def lateral_input(self):
+        """Dictionary with all lateral ids of a compartment (and the compartment ids itself).
+        """
+        compartments = []
+        lat_ids = []
+        for lateral in iter(self.lateral_tributaries.items()):
+            compartment = lateral[0]
+            lat_trib = lateral[1]
+            lat_ids_ = []
+            [lat_ids_.append(tributaries.ids_tributaries.get(id_)) for id_ in lat_trib]
+            lat_ids_.append(self.compartments.get(compartment))
+            lat_ids_ = list(itertools.chain(*lat_ids_))
+            compartments.append(compartment)
+            lat_ids.append(lat_ids_)
+        return dict(zip(compartments, lat_ids))
 
 
 
