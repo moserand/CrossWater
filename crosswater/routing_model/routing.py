@@ -544,6 +544,28 @@ class Links(Compartments):
             compartments.append(compartment)
             lat_ids.append(lat_ids_)
         return dict(zip(compartments, lat_ids))
+        
+
+class Parameterization(Compartments):
+    """Parameterization of the compartment.
+    
+    """
+    def __init__(self, config_file, Compartments):
+        config = read_config(config_file)
+        self.compartments = Compartments.compartments
+        self.riversegments_dbf = config['routing_model']['riversegments_path']
+        self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'LEN_TOM', 'ELEV'])
+    
+    def table(self, compartment):
+        """Returns pandas table with distance x, width, Kst and zb for the compartment.
+        """
+        ids = self.compartments.get(compartment)
+        indices = [self.riversegments.get('WSO1_ID').index(int(id_)) for id_ in ids]
+        df = pandas.DataFrame(index=range(0, len(ids)), columns=['x', 'width', 'Kst', 'zb'], dtype='float')
+        df.x = [self.riversegments.get('LEN_TOM')[index] for index in indices]
+        df.zb = [self.riversegments.get('ELEV')[index] for index in indices]
+        return df
+        
 
 
 class Aggregate(object):
