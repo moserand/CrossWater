@@ -154,104 +154,100 @@ class UpstreamCatchments(object):
         for id_ in id_outlets:
             ids[id_] = self.upstream_ids(catchment_dbf_file, id_)
         return ids
- 
-
-
+    
 class OutputValues(tables.IsDescription):
     """Data model for output data table.
     """
-    catchment_outlet = tables.StringCol(10) # WSO1_ID
+    compartment = tables.StringCol(10)      # WSO1_ID
     discharge = tables.Float64Col()         # m**3/s
-    load_aggregated = tables.Float64Col()              # kg/d 
-    
+    load_aggregated = tables.Float64Col()   # kg/d    
     
 
-class LoadAggregationTributaries(object):
-    """Aggregating loads per timestep for the tributaries along the river
-    """
-    def __init__(self, config_file):
-        config = read_config(config_file)
-        self.input_file_name = config['routing_model']['steps_input_path']
-        self.output_file_name = config['routing_model']['steps_output_path']
-        #self.csv_file_name = config['routing_model']['csv_output_path']
-        self.riversegments_dbf = config['routing_model']['riversegments_path']
-        self.catchment_dbf_file = config['preprocessing']['catchment_path']
-        self.tributaries = Tributaries(config_file)
-            
-    def _open_files(self):
-        """Open HDF5 input and output files.
-        """
-        self.hdf_input = tables.open_file(self.input_file_name, mode='r')
-        self.hdf_output = tables.open_file(self.output_file_name, mode='w',
-                                           title='Crosswater aggregated results per timestep')
-    
-    def _close_files(self):
-        """Close HDF5 input and output files.
-        """
-        self.hdf_input.close()
-        self.hdf_output.close()
-
-    def _write_output(self, step, in_table, outputvalues):
-        """Write output per timestep
-        """
-        for id_outlet in self.tributaries._ids_tributary_outlets:
-            if not in_table['catchment'].str.contains(id_outlet).any():       
-                continue
-            ids = [str(id_) for id_ in self.tributaries.ids_tributaries[id_outlet]]
-            outputvalues['catchment_outlet'] = id_outlet
-            outputvalues['load_aggregated'] = in_table["load"][in_table['catchment'].isin(ids)].sum()
-            outputvalues['discharge'] = in_table["discharge"][in_table['catchment']==str(id_outlet)]
-            outputvalues.append()
-
-    def aggregate(self, total):
-        """Aggregate loads for every timestep
-        """
-        print('aggregate loads and write to output file...')
-        prog = ProgressDisplay(total)
-        for step in range(0,total):
-            prog.show_progress(step + 1, force=True)
-            in_table = pandas.read_hdf(self.input_file_name, '/step_{}/values'.format(step), mode='r')
-            filters = tables.Filters(complevel=5, complib='zlib')
-            out_group = self.hdf_output.create_group('/', 'step_{}'.format(step))
-            out_table = self.hdf_output.create_table(out_group, 'values', OutputValues, filters=filters)
-            outputvalues = out_table.row
-            self._write_output(step, in_table, outputvalues)
-            out_table.flush()
-        print()
-        print(prog.last_display)
-    
-    def table_outlets(self):
-        """Table with catchment ids and ids of outlet.
-        """
-        ids=list(itertools.chain(*self.tributaries.ids_tributaries.values()))
-        table = np.empty(shape=(len(ids),1), dtype=[('catchment', 'S6'),('catchment_outlet', 'S6')])
-        for i in range(len(ids)):
-            id_ = ids[i]
-            table['catchment'][i][0] = id_
-            key=[k for k, v in self.tributaries.ids_tributaries.items() if id_ in v]
-            table['catchment_outlet'][i][0] = key[0]
-        self.hdf_output.create_table('/', 'table_outlets', table)
-        #self.write_table_csv(table)
-    
-    def write_table_csv(self, table):
-        """Write  catchment ids and ids of outlet to csv.
-        """
-        with open(self.csv_file_name, "w") as fp:
-            fp.write('catchment, catchment_outlet\n')
-            fp.write('\n'.join('{}, {}'.format(int(x[0][0]),int(x[0][1])) for x in table))
-    
-    def run(self):
-        """Run thread.
-        """
-        self._open_files()
-        self.table_outlets()
-        self.aggregate(total=2) #365*24)
-        self._close_files()
-
-    
+#class LoadAggregationTributaries(object):
+#    """Aggregating loads per timestep for the tributaries along the river
+#    """
+#    def __init__(self, config_file):
+#        config = read_config(config_file)
+#        self.input_file_name = config['routing_model']['steps_input_path']
+#        self.output_file_name = config['routing_model']['steps_output_path']
+#        #self.csv_file_name = config['routing_model']['csv_output_path']
+#        self.riversegments_dbf = config['routing_model']['riversegments_path']
+#        self.catchment_dbf_file = config['preprocessing']['catchment_path']
+#        self.tributaries = Tributaries(config_file)
+#            
+#    def _open_files(self):
+#        """Open HDF5 input and output files.
+#        """
+#        self.hdf_input = tables.open_file(self.input_file_name, mode='r')
+#        self.hdf_output = tables.open_file(self.output_file_name, mode='w',
+#                                           title='Crosswater aggregated results per timestep')
+#    
+#    def _close_files(self):
+#        """Close HDF5 input and output files.
+#        """
+#        self.hdf_input.close()
+#        self.hdf_output.close()
+#
+#    def _write_output(self, step, in_table, outputvalues):
+#        """Write output per timestep
+#        """
+#        for id_outlet in self.tributaries._ids_tributary_outlets:
+#            if not in_table['catchment'].str.contains(id_outlet).any():       
+#                continue
+#            ids = [str(id_) for id_ in self.tributaries.ids_tributaries[id_outlet]]
+#            outputvalues['catchment_outlet'] = id_outlet
+#            outputvalues['load_aggregated'] = in_table["load"][in_table['catchment'].isin(ids)].sum()
+#            outputvalues['discharge'] = in_table["discharge"][in_table['catchment']==str(id_outlet)]
+#            outputvalues.append()
+#
+#    def aggregate(self, total):
+#        """Aggregate loads for every timestep
+#        """
+#        print('aggregate loads and write to output file...')
+#        prog = ProgressDisplay(total)
+#        for step in range(0,total):
+#            prog.show_progress(step + 1, force=True)
+#            in_table = pandas.read_hdf(self.input_file_name, '/step_{}/values'.format(step), mode='r')
+#            filters = tables.Filters(complevel=5, complib='zlib')
+#            out_group = self.hdf_output.create_group('/', 'step_{}'.format(step))
+#            out_table = self.hdf_output.create_table(out_group, 'values', OutputValues, filters=filters)
+#            outputvalues = out_table.row
+#            self._write_output(step, in_table, outputvalues)
+#            out_table.flush()
+#        print()
+#        print(prog.last_display)
+#    
+#    def table_outlets(self):
+#        """Table with catchment ids and ids of outlet.
+#        """
+#        ids=list(itertools.chain(*self.tributaries.ids_tributaries.values()))
+#        table = np.empty(shape=(len(ids),1), dtype=[('catchment', 'S6'),('catchment_outlet', 'S6')])
+#        for i in range(len(ids)):
+#            id_ = ids[i]
+#            table['catchment'][i][0] = id_
+#            key=[k for k, v in self.tributaries.ids_tributaries.items() if id_ in v]
+#            table['catchment_outlet'][i][0] = key[0]
+#        self.hdf_output.create_table('/', 'table_outlets', table)
+#        #self.write_table_csv(table)
+#    
+#    def write_table_csv(self, table):
+#        """Write  catchment ids and ids of outlet to csv.
+#        """
+#        with open(self.csv_file_name, "w") as fp:
+#            fp.write('catchment, catchment_outlet\n')
+#            fp.write('\n'.join('{}, {}'.format(int(x[0][0]),int(x[0][1])) for x in table))
+#    
+#    def run(self):
+#        """Run thread.
+#        """
+#        self._open_files()
+#        self.table_outlets()
+#        self.aggregate(total=2) #365*24)
+#        self._close_files()
+  
         
 class Tributaries(object):
-    """Area and ids of the tributaries to the rivernetwork 
+    """
     """
     def __init__(self, config_file):
         config = read_config(config_file)
@@ -291,7 +287,6 @@ class Tributaries(object):
         """Return dictionary of catchments of all tributary upstream areas
         """
         ids_tributaries = UpstreamCatchments(self.catchment_dbf_file, self.ids_tributary_outlets)
-        print()
         return ids_tributaries.ids
 
     def ids_tributary_outlets(self):
@@ -314,14 +309,13 @@ class Tributaries(object):
             outlets.append(outlet_id)
             tot_areas.append(sum([area for id_, area in self.areas.items() if str(id_) in ids]))
         return dict(zip(outlets, tot_areas))
- 
-
-     
+        
+   
 class Compartments(object):
     """Compartments for Aquasim.
     
         Compartments are river reaches that are connected with advective links 
-        and may have lateral links alongside. One compartment exists of one or more
+        and may have diffusive links alongside. One compartment exists of one or more
         riversegments and does not contain any river junctions.
         The river network is at first divided at the river junctions, if the 
         desired number of compartments is higher, the river reaches are further 
@@ -330,9 +324,10 @@ class Compartments(object):
     def __init__(self, config_file, Tributaries):
         self.areas_tributaries = Tributaries.areas_tributaries
         config = read_config(config_file)
+        print('define the compartments...', end='')
         self.riversegments_dbf = config['routing_model']['riversegments_path']
         self.catchment_dbf_file = config['preprocessing']['catchment_path']
-        self.nr_comp = int(config['routing_model']['nr_compartments'])   # TODO: default 0
+        self.nr_comp = int(config['routing_model']['nr_compartments'])   ##### TODO: default 0
         self.ids_riversegments = self.read_ids(self.riversegments_dbf, 'WSO1_ID')
         self.ids_junctions = self.get_junctions()
         self.ids_headwater = self.get_headwater() 
@@ -341,6 +336,8 @@ class Compartments(object):
         self.ids_up = self.ids_up()
         self.ids_down = self.ids_down()
         self.compartments = self.compartments()
+        self.comp_length = self.comp_length()
+        print('Done')
     
     @staticmethod
     def read_ids(dbf_file_name, col_name):
@@ -350,6 +347,19 @@ class Compartments(object):
         if all(isinstance(id_, int) for id_ in ids):
             ids = [str(id_)for id_ in ids]     
         return ids
+    
+    def get_value_by_id(self, col_name, converter=1, ids=None):
+        """Returns a dict catchment-id: value
+
+        converter for units with default value 1
+        ids to filter (e.g. only Strahler)
+        """
+        data = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', col_name])
+        res = {id_: value * converter for id_, value in
+               zip(data['WSO1_ID'], data[col_name])}
+        if ids:
+            res = {id_: value for id_, value in res.items() if id_ in ids}
+        return res
     
     def get_junctions(self):
         """Returns catchments of riversegments downstream of the junctions of two rivers.
@@ -403,7 +413,7 @@ class Compartments(object):
             ids of junctions, ids of advective tributary inlets, ids of headwater catchments
         """
         ids_up = self.ids_advective_inlets + self.ids_headwater + self.ids_junctions
-        ids_up = list(set(ids_up))                  #TODO: remove duplicated  beforehand (ids in junctions and advective)
+        ids_up = list(set(ids_up)) #remove duplicated
         return ids_up
     
     def ids_down(self):
@@ -430,9 +440,22 @@ class Compartments(object):
             nextid = conn.connections.get(id_)[0]
             while nextid not in self.ids_up and nextid != '-9999':
                 ids.append(nextid)
-                nextid = conn.connections.get(nextid)[0]
+                nextid = conn.connections.get(nextid)[0] 
             comp_ids.append(ids)
         return dict(zip(comp_name, comp_ids))
+    
+    def comp_length(self):
+        """Dictionary with compartment name and length.
+        """
+        lengths = self.get_value_by_id('LENGTH')
+        name_comp = []
+        length_comp =[]
+        for comp, ids in self.compartments.items():
+            name_comp.append(comp)
+            length_tot = sum(lengths[int(id_)] for id_ in ids)
+            length_comp.append(length_tot)
+        return dict(zip(name_comp, length_comp))
+               
 
     def write_compartments_csv(self, csv_file_name):
         """Write compartment names and catchments to file specified as argument.
@@ -442,26 +465,32 @@ class Compartments(object):
             for key in self.compartments.keys():
                 values = self.compartments[key]
                 [fp.write('{}, {}\n'.format(key, value)) for value in values]
- 
- 
-   
-class Links(Compartments):
+                
+    
+class Links(object):
     """Links between compartments for Aquasim.
     
         How are the compartments linked together in Aquasim and
         which primary catchments are upstream or lateral input
         to a compartment.
     """
-    def __init__(self, config_file, Tributaries):
+    def __init__(self, config_file, Tributaries, Compartments):
         self.areas_tributaries = Tributaries.areas_tributaries
         self.ids_tributaries = Tributaries.ids_tributaries
-        self.ids_tributary_outlets = Tributaries.ids_tributary_outlets       
-        Compartments.__init__(self, config_file, Tributaries)
+        self.ids_tributary_outlets = Tributaries.ids_tributary_outlets
+        self.compartments = Compartments.compartments
+        self.ids_riversegments = Compartments.ids_riversegments 
+        self.ids_down = Compartments.ids_down
+        config = read_config(config_file)
+        self.riversegments_dbf = config['routing_model']['riversegments_path']
+        self.catchment_dbf_file = config['preprocessing']['catchment_path']
+        print('get lateral/upstream input catchments and define links between compartments...', end='')
         self.compartment_links = self.compartment_links()
         self.upstream_tributaries = self.upstream_tributaries()
         self.lateral_tributaries = self.lateral_tributaries()
         self.lateral_input = self.lateral_input()
         self.upstream_input = self.upstream_input()
+        print('Done')
         
     def compartment_links(self):
         """Table with name of link, from- and to-compartment name.
@@ -544,46 +573,84 @@ class Links(Compartments):
             compartments.append(compartment)
             lat_ids.append(lat_ids_)
         return dict(zip(compartments, lat_ids))
-        
 
-class Parameterization(Compartments):
+
+class Parameterization(object):
     """Parameterization of the compartment.
     
+        Parameterization of the riverbed with distance to river mouth ('X'), 
+        riverbed width ('WIDTH'), Strickler coefficient ('Kst') and riverbed 
+        elevation z ('ELEV') from the dbf file riversegments.
     """
     def __init__(self, config_file, Compartments):
         config = read_config(config_file)
+        print('parameterize compartments...', end='')
         self.compartments = Compartments.compartments
         self.riversegments_dbf = config['routing_model']['riversegments_path']
-        self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'LEN_TOM', 'ELEV'])
+        self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'X', 'ELEV', 'WIDTH', 'Kst'])
+        print('Done')
     
     def table(self, compartment):
-        """Returns pandas table with distance x, width, Kst and zb for the compartment.
+        """Returns numpy array with distance x, width, Kst and zb for the compartment.
         """
         ids = self.compartments.get(compartment)
         indices = [self.riversegments.get('WSO1_ID').index(int(id_)) for id_ in ids]
         df = pandas.DataFrame(index=range(0, len(ids)), columns=['x', 'width', 'Kst', 'zb'], dtype='float')
-        df.x = [self.riversegments.get('LEN_TOM')[index] for index in indices]
+        df.x = [self.riversegments.get('X')[index] for index in indices]
         df.zb = [self.riversegments.get('ELEV')[index] for index in indices]
-        return df
-        
+        df.width = [self.riversegments.get('WIDTH')[index] for index in indices]
+        df.Kst = [self.riversegments.get('Kst')[index] for index in indices]
+        values = df.values.ravel().view(dtype=[('x', '<f8'), ('width', '<f8'), ('Kst', '<f8'),('zb', '<f8')])
+        return values
+ 
+       
+class InitialConditions(object):
+    """Initial conditions of the compartments.
+    
+        Initial discharge 'MQ' for every compartment from the dbf file riversegments.
+    """
+    def __init__(self, config_file, Compartments):
+        config = read_config(config_file)
+        print('initial conditions for compartments...', end='')
+        self.compartments = Compartments.compartments
+        self.comp_length = Compartments.comp_length
+        self.riversegments_dbf = config['routing_model']['riversegments_path']
+        self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'MQ', 'X'])
+        print('Done')
 
-
+    def table(self, compartment):
+        """Returns numpy array with initial conditions.
+        """
+        id_upstream = self.compartments.get(compartment)[0]
+        index = self.riversegments.get('WSO1_ID').index(int(id_upstream))
+        df = pandas.DataFrame(index=range(0,1), columns=['MQ', 'start_x', 'comp_length'], dtype='float')
+        df.MQ = self.riversegments.get('MQ')[index]
+        df.start_x = self.riversegments.get('X')[index]        
+        df.comp_length = self.comp_length[compartment]    
+        values = df.values.ravel().view(dtype=[('MQ', '<f8'),('start_x', '<f8'),('comp_length', '<f8')])
+        return values
+              
+    
 class Aggregate(object):
-    """Aggregate loads and discharge for lateral and upstream input of the compartments.
+    """Aggregate loads and discharge for lateral and upstream input of the compartments and write to HDF.
     
         The loads are accumulated for every timestep and for all catchments connected laterally
         or upstream to the compartments. The loads of the rivernetwork catchments are accounted
         for in the lateral aggregation. The discharge is accumulated from the lateral or upstream
         tributary outlets.
     """
-    def __init__(self, config_file, Tributaries, Compartments, Links):
+    def __init__(self, config_file, Tributaries, Compartments, Links, Parameterization, InitialConditions):
             config = read_config(config_file)
             self.input_file_name = config['routing_model']['steps_input_path']
             self.output_file_name = config['routing_model']['steps_output_path']
+            self.compartments = Compartments.compartments
+            self.compartment_links = Links.compartment_links
             self.lateral_tributaries = Links.lateral_tributaries
             self.upstream_tributaries = Links.upstream_tributaries            
             self.lateral_input = Links.lateral_input
             self.upstream_input = Links.upstream_input
+            self.parameterization_table = Parameterization.table
+            self.initialconditions_table = InitialConditions.table
             
     def table_lateral(self):
         """Write table table_lateral to HDF.
@@ -596,6 +663,14 @@ class Aggregate(object):
         """
         table = self._table(self.upstream_input)
         self.hdf_output.create_table('/', 'table_upstream', table)
+        
+    def table_links(self):
+        """Write table links to HDF with name, fromCompart, toCompart.
+        """
+        df = self.compartment_links
+        array = df.to_records(index=False)
+        table = array.astype(dtype=[('Name', 'a25'), ('fromCompart', 'a25'), ('toCompart', 'a25')])
+        self.hdf_output.create_table('/', 'links', table)
             
     def _table(self, compartment_input):
         """Write table of all upstream/lateral catchments and the receiving compartment. 
@@ -608,30 +683,9 @@ class Aggregate(object):
             key=[k for k, v in compartment_input.items() if id_ in v]
             table['compartment'][i][0] = key[0]
         return table
-        
-    def aggregate(self, steps=365*24):
-        """Aggregate loads for every timestep
-        """
-        print('aggregate loads and write to output file...')
-        prog = ProgressDisplay(steps)
-        for step in range(0,steps):
-            prog.show_progress(step + 1, force=True)
-            in_table = pandas.read_hdf(self.input_file_name, '/step_{}/values'.format(step), mode='r')
-            filters = tables.Filters(complevel=5, complib='zlib')
-            out_group = self.hdf_output.create_group('/', 'step_{}'.format(step))
-            out_table = self.hdf_output.create_table(out_group, 'lateral_input', OutputValues, filters=filters)
-            outputvalues = out_table.row
-            self._write_table_lateral(step, in_table, outputvalues)
-            out_table.flush()
-            out_table = self.hdf_output.create_table(out_group, 'upstream_input', OutputValues, filters=filters)
-            outputvalues = out_table.row
-            self._write_table_upstream(step, in_table, outputvalues)
-            out_table.flush()
-        print()
-        print(prog.last_display)
     
-    def _write_table_lateral(self, step, in_table, outputvalues):
-        """Write output per timestep
+    def _write_lateral_input(self, step, in_table, outputvalues):
+        """Write input per timestep
         """
         for compartment in self.lateral_input.keys():
             ids = self.lateral_input.get(compartment)
@@ -640,8 +694,8 @@ class Aggregate(object):
             outputvalues['discharge'] = in_table["discharge"][in_table['catchment'].isin(self.lateral_tributaries.get(compartment))].sum()
             outputvalues.append()
        
-    def _write_table_upstream(self, step, in_table, outputvalues):
-        """Write output per timestep
+    def _write_upstream_input(self, step, in_table, outputvalues):
+        """Write input per timestep
         """
         for compartment in self.upstream_input.keys():
             ids = self.lateral_input.get(compartment)
@@ -649,6 +703,51 @@ class Aggregate(object):
             outputvalues['load_aggregated'] = in_table["load"][in_table['catchment'].isin(ids)].sum()
             outputvalues['discharge'] = in_table["discharge"][in_table['catchment'].isin(self.upstream_tributaries.get(compartment))].sum()
             outputvalues.append()
+            
+    def write_parametrization(self):
+        """ Write group parameterization to HDF file.
+        
+            For every compartment a parameterization table.
+        """
+        filters = tables.Filters(complevel=5, complib='zlib')
+        out_group = self.hdf_output.create_group('/', 'parameterization')
+        for compartment in self.compartments:
+            values = self.parameterization_table(compartment)
+            self.hdf_output.create_table(out_group, compartment, values, filters=filters)
+            
+    def write_initialconditions(self):
+        """ Write group initial conditions to HDF file.
+        
+            For every compartment an initial_condtitions table.
+        """
+        filters = tables.Filters(complevel=5, complib='zlib')
+        out_group = self.hdf_output.create_group('/', 'initial_conditions')
+        for compartment in self.compartments:
+            values = self.initialconditions_table(compartment)
+            self.hdf_output.create_table(out_group, compartment, values, filters=filters)    
+            
+    def aggregate(self, steps=365*24):
+        """Aggregate loads for every timestep
+        """
+        print('')
+        print('Aggregate loads for every compartment and write to HDF output file per timestep...')
+        prog = ProgressDisplay(steps)
+        for step in range(0,steps):
+            prog.show_progress(step + 1, force=True)
+            in_table = pandas.read_hdf(self.input_file_name, '/step_{}/values'.format(step), mode='r')
+            filters = tables.Filters(complevel=5, complib='zlib')
+            out_group = self.hdf_output.create_group('/', 'step_{}'.format(step))
+            out_table = self.hdf_output.create_table(out_group, 'lateral_input', OutputValues, filters=filters)
+            outputvalues = out_table.row
+            self._write_lateral_input(step, in_table, outputvalues)
+            out_table.flush()
+            out_table = self.hdf_output.create_table(out_group, 'upstream_input', OutputValues, filters=filters)
+            outputvalues = out_table.row
+            self._write_upstream_input(step, in_table, outputvalues)
+            out_table.flush()
+        print()
+        print(prog.last_display)
+        print('Done')
     
     def run(self):
         """Run thread.
@@ -658,11 +757,12 @@ class Aggregate(object):
         as self.hdf_output:
             self.table_lateral()
             self.table_upstream()
-            self.aggregate()
+            self.table_links()
+            self.write_parametrization()
+            self.write_initialconditions()
+            self.aggregate(steps=50)
         
         
-    
-
 
 
 #def run():
