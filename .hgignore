@@ -1,6 +1,14 @@
 syntax: glob
+
+
+**/routing_model/*
 **/__pycache__/**.*
+
 **/.DS_Store
 .cache
+
 **.wpr
+
 **.wpu
+
+

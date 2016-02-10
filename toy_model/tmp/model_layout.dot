@@ -1,8 +1,0 @@
-digraph layout {
-	appl_349336 -> atrazin_349336;
-	appl_349336 -> atrazin_349336;
-	CalcC_atrazin_349336 [shape=diamond];
-	Emptymeas [shape=diamond];
-	atrazin_349336 -> CalcC_atrazin_349336;
-	CalcC_atrazin_349336:e -> Emptymeas:w [dir=both color="red:blue"];
-}
