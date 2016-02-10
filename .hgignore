@@ -1,14 +1,9 @@
 syntax: glob
-
-
-**/routing_model/*
+model_toy/**
 **/__pycache__/**.*
-
 **/.DS_Store
 .cache
-
 **.wpr
-
 **.wpu
 
 
