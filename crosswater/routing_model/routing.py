@@ -581,14 +581,36 @@ class Parameterization(object):
         Parameterization of the riverbed with distance to river mouth ('X'), 
         riverbed width ('WIDTH'), Strickler coefficient ('Kst') and riverbed 
         elevation z ('ELEV') from the dbf file riversegments.
+        Any rise in elevation along the riverbed is corrected with interpolation.
     """
     def __init__(self, config_file, Compartments):
         config = read_config(config_file)
         print('parameterize compartments...', end='')
+        pandas.options.mode.chained_assignment = None
         self.compartments = Compartments.compartments
         self.riversegments_dbf = config['routing_model']['riversegments_path']
         self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'X', 'ELEV', 'WIDTH', 'Kst'])
         print('Done')
+        
+    def _slope_correction(self, df):
+        """Replace riverbed elevation where slope >= 0 with interpolation.
+        """
+        ndf=pandas.Series(index=df.x, data=df.zb.values)
+        while any(ndf.diff(1) >= 0):
+            index = ndf.diff(1) >= 0
+            ndf[index] = None
+            ndf.interpolate(method='index', inplace=True)
+            if ndf.values[-2]==ndf.values[-1]:
+                ndf.values[-1] = ndf.values[-1]-.1
+        return ndf.values.round(1)
+    
+    def _extend(self, df):
+        """Extend the parameterization of one point 100m along x
+        """
+        df = df.append(df.ix[0], ignore_index=True)
+        df.x[1] = df.x[0]+100
+        return df
+        
     
     def table(self, compartment):
         """Returns numpy array with distance x, width, Kst and zb for the compartment.
@@ -600,8 +622,11 @@ class Parameterization(object):
         df.zb = [self.riversegments.get('ELEV')[index] for index in indices]
         df.width = [self.riversegments.get('WIDTH')[index] for index in indices]
         df.Kst = [self.riversegments.get('Kst')[index] for index in indices]
+        if len(df)==1:
+            df = self._extend(df)
+        df.zb = self._slope_correction(df)
         values = df.values.ravel().view(dtype=[('x', '<f8'), ('width', '<f8'), ('Kst', '<f8'),('zb', '<f8')])
-        return values
+        return df
  
        
 class InitialConditions(object):
@@ -760,7 +785,7 @@ class Aggregate(object):
             self.table_links()
             self.write_parametrization()
             self.write_initialconditions()
-            self.aggregate(steps=50)
+            self.aggregate(steps=100)
         
         
 
