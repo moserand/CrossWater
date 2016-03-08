@@ -626,7 +626,7 @@ class Parameterization(object):
             df = self._extend(df)
         df.zb = self._slope_correction(df)
         values = df.values.ravel().view(dtype=[('x', '<f8'), ('width', '<f8'), ('Kst', '<f8'),('zb', '<f8')])
-        return df
+        return values
  
        
 class InitialConditions(object):
@@ -785,7 +785,7 @@ class Aggregate(object):
             self.table_links()
             self.write_parametrization()
             self.write_initialconditions()
-            self.aggregate(steps=100)
+            self.aggregate()
         
         
 

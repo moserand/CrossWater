@@ -45,7 +45,7 @@ class Convert(object):
             row = np.empty(shape=(1,1), dtype=[('t', '<f8'), ('discharge', '<f8'), ('load_aggregated', '<f8')])
             row['t'] = [step]
             row['discharge'] = in_table.read_where('compartment==comp')[['discharge']]
-            row['discharge'] = in_table.read_where('compartment==comp')[['load_aggregated']]
+            row['load_aggregated'] = in_table.read_where('compartment==comp')[['load_aggregated']]
             values[step] = row
             in_table.flush()
         return values

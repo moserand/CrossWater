@@ -17,7 +17,7 @@ def run_routing():
     """
     config_file = sys.argv[1]
     
-    print('Divide river network into compartments and aggregate loads:')
+    print('Divide river network into compartments and aggregate loads')
     tributaries = Tributaries(config_file)    
     compartments = Compartments(config_file, tributaries)
     links = Links(config_file, tributaries, compartments)
@@ -27,12 +27,12 @@ def run_routing():
     aggregate.run()
     print('')
     
-    print('Run conversion from one table per timestep to one table per catchment:')
+    print('Run conversion from one table per timestep to one table per compartment')
     conversion = Convert(config_file)
     conversion.run()
     print('')
     
-    print('Write Aquasim input file...')
+    print('Write Aquasim input file')
     write_aqu(config_file)
 
 if __name__ == '__main__':
