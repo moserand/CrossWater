@@ -118,11 +118,11 @@ class ModelRunner(object):
         row = self.output_table.row
         zipped = zip(out['discharge'], out['concentration'])
         for step, (discharge, concentration) in enumerate(zipped, 1):
-            row['timestep'] = step
+            row['timestep'] = step                                   # h
             row['catchment'] = id_
-            row['discharge'] = discharge
-            row['concentration'] = concentration
-            row['load'] = concentration * discharge * 86400 * 10e-9
+            row['discharge'] = discharge                             # m3/s
+            row['concentration'] = concentration                     # ng/l
+            row['load'] = concentration * discharge * 86400 * 10e-9  # kg/d
             row.append()
 
     def _run_all(self):
