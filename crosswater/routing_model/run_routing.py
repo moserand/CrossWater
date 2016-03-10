@@ -24,7 +24,7 @@ def run_routing():
     parameterization = Parameterization(config_file, compartments)
     initialconditions = InitialConditions(config_file, compartments)
     aggregate = Aggregate(config_file, tributaries, compartments, links, parameterization, initialconditions)       
-    aggregate.run()
+    aggregate.run(steps=20)
     print('')
     
     print('Run conversion from one table per timestep to one table per compartment')

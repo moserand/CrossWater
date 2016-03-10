@@ -774,7 +774,7 @@ class Aggregate(object):
         print(prog.last_display)
         print('Done')
     
-    def run(self):
+    def run(self, steps=365*24):
         """Run thread.
         """
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input,\
@@ -785,7 +785,7 @@ class Aggregate(object):
             self.table_links()
             self.write_parametrization()
             self.write_initialconditions()
-            self.aggregate()
+            self.aggregate(steps)
         
         
 
