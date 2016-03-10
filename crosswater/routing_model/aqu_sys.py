@@ -72,6 +72,7 @@ class VarSys(object):
             self.progvar = self.progvar()
             self.constvar = self.constvar()
             self.reallistvar = self.reallistvar()
+            self.statevar = self.statevar()
             self.formvar = self.formvar()
             self.text = self.text()
             
@@ -101,11 +102,16 @@ class VarSys(object):
         
             alpha: Angle river bed
             Qinit_comp: Initial discharge (for every compartment)
+            sph: seconds per hour (conversion factor)
+            hpd: hours per day (conversion factor)
+            ugpkg: ug per kg (conversion factor)
             hinit_comp: Initial water depth(for every compartment)
             Lc_comp: Compartment length (for every compartment)
         """
         alpha = brace(1, 'alpha', 'Angle river bed', 'rad', 0, 1, 0, math.pi/2, 'TRUE', 'FALSE')
         sph = brace(1, 'sph', 'convert time from 1/s to 1/h', 's/h', 3600, 0.001, 0, 1000000, 'FALSE','FALSE')
+        hpd = brace(1, 'hpd', 'convert time from d to h', 's/h', 24, 0.001, 0, 1000000, 'FALSE','FALSE')
+        ugpkg = brace(1, 'ugpkg', 'convert wheight from kg to ug', 's/h', 1000000000, 0.001, 0, 10000000000, 'FALSE','FALSE')
         Qinit_ = []
         hinit_ = []
         Lc_ = []
@@ -147,7 +153,7 @@ class VarSys(object):
             Lc_compart = brace(1, Lc_name, Lc_description, Lc_unit, Lc_value, Lc_stdev, \
                                   Lc_min, Lc_max, Lc_active_sa, Lc_active_pe)
             Lc_.append(Lc_compart)
-        return output('CONSTVAR', alpha, sph, Qinit_, hinit_, Lc_)
+        return output('CONSTVAR', alpha, sph, hpd, ugpkg, Qinit_, hinit_, Lc_)
         
     def reallistvar(self):
         """List variables: Time-series or spatial data
@@ -157,12 +163,16 @@ class VarSys(object):
             Kst_comp: Strickler coefficient (for every compartment)
             Qin_comp: Upstream input discharge (for every compartment)
             Qlat_comp: Lateral input discharge (for every compartment)
+            Min_comp: Upstream input of substance, upstream load (for every compartment)
+            Mlat_comp: Lateral input of substance, lateral load (for every compartment)
         """
         w_ = []
         zB_ = []
         Kst_ = []
         Qin_ = []
         Qlat_ = []
+        Min_ = []
+        Mlat_ = []
         for compart in self._compart_names:
             node = self.hdf_input.get_node('/','{}/parameterization'.format(compart))
             w_name = 'w_'+compart
@@ -252,12 +262,58 @@ class VarSys(object):
             Qlat_compart = brace(1, Qlat_name, Qlat_description, Qlat_unit, Qlat_arg, Qlat_stdev, Qlat_relstdev, Qlat_absstdev, \
                                Qlat_min, Qlat_max, Qlat_interpol, Qlat_smoothw, Qlat_active_sa, Qlat_stdev_list, brace(Qlat_values))
             Qlat_.append(Qlat_compart)
-
-        return output('REALLISTVAR', w_, zB_, Kst_, Qin_, Qlat_)
+            node = self.hdf_input.get_node('/','{}/upstream_input'.format(compart))
+            Min_name = 'Min_'+compart
+            Min_description = 'Upstream input load'
+            Min_unit = 'kg/d'
+            Min_arg = 't'
+            Min_stdev = 'TRUE'
+            Min_relstdev = 0
+            Min_absstdev = 1
+            Min_min = 0
+            Min_max = 10000
+            Min_interpol = 'LINEAR'
+            Min_smoothw = 1
+            Min_active_sa = 'FALSE' 
+            Min_stdev_list = 'FALSE'
+            Min_values = zipping(node, 't', 'load_aggregated')
+            Min_compart = brace(1, Min_name, Min_description, Min_unit, Min_arg, Min_stdev, Min_relstdev, Min_absstdev, \
+                               Min_min, Min_max, Min_interpol, Min_smoothw, Min_active_sa, Min_stdev_list, brace(Min_values))
+            Min_.append(Min_compart)
+            node = self.hdf_input.get_node('/','{}/lateral_input'.format(compart))
+            Mlat_name = 'Mlat_'+compart
+            Mlat_description = 'Upstream input load'
+            Mlat_unit = 'kg/d'
+            Mlat_arg = 't'
+            Mlat_stdev = 'TRUE'
+            Mlat_relstdev = 0
+            Mlat_absstdev = 1
+            Mlat_min = 0
+            Mlat_max = 10000
+            Mlat_interpol = 'LINEAR'
+            Mlat_smoothw = 1
+            Mlat_active_sa = 'FALSE' 
+            Mlat_stdev_list = 'FALSE'
+            Mlat_values = zipping(node, 't', 'load_aggregated')
+            Mlat_compart = brace(1, Mlat_name, Mlat_description, Mlat_unit, Mlat_arg, Mlat_stdev, Mlat_relstdev, Mlat_absstdev, \
+                               Mlat_min, Mlat_max, Mlat_interpol, Mlat_smoothw, Mlat_active_sa, Mlat_stdev_list, brace(Mlat_values))
+            Mlat_.append(Mlat_compart)
+        return output('REALLISTVAR',w_, zB_, Kst_, Qin_, Qlat_, Min_, Mlat_)
     
     def statevar(self):
+        """State variables
+        
+            C: Concentration
         """
-        """
+        unknown = 1
+        name = "C"
+        description = "Concentration"
+        unit = "ug/m3"
+        var = "VOL"
+        relacc = 1e-006
+        absacc = 1e-006
+        C = brace(unknown, name, description, unit, var, relacc, absacc)
+        return output("STATEVAR", C)
         
     def formvar(self):
         """ Formula variable
@@ -276,6 +332,7 @@ class VarSys(object):
         A_ = []
         P_ = []
         z0init_ = []
+        
         for compart in self._compart_names:
             h_name = 'h_'+compart
             h_description = 'Maximum water depth'
@@ -394,14 +451,20 @@ class CompSys(object):
             name = compart
             description = 'River reach '+compart
             comp_index = 0
-            variables = ''
+            
+            variables = brace('C')
+            
             processes = ''
             active_calc = 'TRUE'
             up_input = 'Qin_{}*sph'.format(compart)
-            up_var = 0
+            
+            up_var = brace('C', 'Min_{}/hpd*ugpkg'.format(compart))
+            
             init_cond = brace(0, 'Q', 'Qinit_{}*sph'.format(compart), 0, 'z0', 'z0init_{}'.format(compart))
             lat_input = 'Qlat_{0}/Lc_{0}*sph'.format(compart)
-            lat_var = ''
+            
+            lat_var = brace('C', '(Mlat_{0}/hpd*ugpkg)/(Qlat_{0}*sph)'.format(compart))
+            
             grid_pts = 8
             resolution = 'FALSE'
             Q_relacc = 0.001

@@ -19,6 +19,7 @@ def varsys(file,vs):
     file.write(vs.progvar)
     file.write(vs.constvar)
     file.write(vs.reallistvar)
+    file.write(vs.statevar)
     file.write(vs.formvar)
     file.write('}')
     
