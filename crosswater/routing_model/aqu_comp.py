@@ -247,7 +247,11 @@ class OutputValues(tables.IsDescription):
   
         
 class Tributaries(object):
-    """
+    """Get all tributaries to the rivernetwork.
+    
+        In riversegments is the newtork represented for the modelling with Aquasim and
+        the catchments includes the total network. The upstream catchments of all 
+        tributing outlets to the riversegments are aggregated.
     """
     def __init__(self, config_file):
         config = read_config(config_file)
@@ -589,6 +593,7 @@ class Parameterization(object):
         print('parameterize compartments...', end='')
         pandas.options.mode.chained_assignment = None
         self.compartments = Compartments.compartments
+        self.comp_length = Compartments.comp_length
         self.riversegments_dbf = config['routing_model']['riversegments_path']
         self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'X', 'ELEV', 'WIDTH', 'Kst'])
         print('Done')
@@ -602,17 +607,16 @@ class Parameterization(object):
             ndf[index] = None
             ndf.interpolate(method='index', inplace=True)
             if ndf.values[-2]==ndf.values[-1]:
-                ndf.values[-1] = ndf.values[-1]-.1
+                ndf.values[-1] = ndf.values[-1]-1
         return ndf.values.round(1)
     
-    def _extend(self, df):
-        """Extend the parameterization of one point 100m along x
+    def _extend(self, df, l):
+        """Extend the parameterization of one point l m along x further.
         """
         df = df.append(df.ix[0], ignore_index=True)
-        df.x[1] = df.x[0]+100
+        df.x[1] = df.x[0]+l
         return df
-        
-    
+
     def table(self, compartment):
         """Returns numpy array with distance x, width, Kst and zb for the compartment.
         """
@@ -624,7 +628,8 @@ class Parameterization(object):
         df.width = [self.riversegments.get('WIDTH')[index] for index in indices]
         df.Kst = [self.riversegments.get('Kst')[index] for index in indices]
         if len(df)==1:
-            df = self._extend(df)
+            l = self.comp_length[compartment]
+            df = self._extend(df, l)
         df.zb = self._slope_correction(df)
         values = df.values.ravel().view(dtype=[('x', '<f8'), ('width', '<f8'), ('Kst', '<f8'),('zb', '<f8')])
         return values
