@@ -66,7 +66,7 @@ class VarSys(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['catchment_output_path']
+        self.input_file_name = config['routing_model']['compartment_output_aqu']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._compart_names = self._compart_names()
             self.progvar = self.progvar()
@@ -372,7 +372,7 @@ class CompSys(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['catchment_output_path']
+        self.input_file_name = config['routing_model']['compartment_output_aqu']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._compart_names = self._compart_names()
             self.rivcomp = self.rivcomp()
@@ -507,7 +507,7 @@ class LinkSys(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['catchment_output_path']
+        self.input_file_name = config['routing_model']['compartment_output_aqu']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._links = self._links()
             self.advlink = self.advlink()
@@ -554,7 +554,7 @@ class CalcSys(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['catchment_output_path']
+        self.input_file_name = config['routing_model']['compartment_output_aqu']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._compart_names = self._compart_names()
             self._timesteps = self._timesteps()

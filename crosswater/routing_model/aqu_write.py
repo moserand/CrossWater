@@ -50,7 +50,7 @@ def write_aqu(config_file):
     """
     """
     config = read_config(config_file)
-    aqu_path = config['routing_model']['aqu_path']
+    aqu_path = config['routing_model']['aqu_output']
     with open(aqu_path, 'w') as aqu:
         header(aqu)
         options(aqu)

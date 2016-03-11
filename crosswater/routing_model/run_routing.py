@@ -4,8 +4,8 @@ Run routing
 
 import sys
 
-from crosswater.routing_model.routing import Tributaries, Compartments, Links, Parameterization, InitialConditions, Aggregate
-from crosswater.routing_model.convert_hdf_compartments import Convert
+from crosswater.routing_model.aqu_comp import Tributaries, Compartments, Links, Parameterization, InitialConditions, Aggregate
+from crosswater.routing_model.convert_hdf_aqu import Convert
 from crosswater.routing_model.aqu_write import write_aqu
 
 from crosswater.tools.time_helper import show_used_time
