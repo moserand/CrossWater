@@ -137,7 +137,7 @@ def create_hdf_file(file_name, tot_areas, appl_areas, appl_rates):
     h5_file.close()
 
 
-def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
+def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name, qloc_file_name,
                      batch_size=None, total=365 * 24):
     """Add input with pandas.
     """
@@ -166,12 +166,14 @@ def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
                                  usecols=usecols)
         dis = pandas.read_csv(q_file_name, sep=';', parse_dates=True,
                               usecols=usecols)
+        locdis = pandas.read_csv(qloc_file_name, sep=';', parse_dates=True,
+                                usecols=usecols)
         temp_hourly = temp.reindex(dis.index, method='ffill')
         for id_ in ids:
             counter += 1
-            inputs = pandas.concat([temp_hourly[id_], precip[id_], dis[id_]],
+            inputs = pandas.concat([temp_hourly[id_], precip[id_], dis[id_], locdis[id_]],
                                    axis=1)
-            inputs.columns = ['temperature', 'precipitation', 'discharge']
+            inputs.columns = ['temperature', 'precipitation', 'discharge', 'local_discharge']
             input_table = inputs.to_records(index=False)
             name = 'catch_{}'.format(id_)
             group = get_child(name)
@@ -204,6 +206,7 @@ def preprocess(config_file):
     t_file_name = config['preprocessing']['temperature_path']
     p_file_name = config['preprocessing']['precipitation_path']
     q_file_name = config['preprocessing']['discharge_path']
+    qloc_file_name = config['preprocessing']['local_discharge_path']
     max_ids = config['preprocessing']['max_ids']
     ids = None
     if max_ids:
@@ -218,8 +221,8 @@ def preprocess(config_file):
     strahler, tot_areas, appl_areas, appl_rates = filter_strahler_lessthan(
         strahler, tot_areas, appl_areas, appl_rates, strahler_limit)
     create_hdf_file(h5_file_name, tot_areas, appl_areas, appl_rates)
-    add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name,
-                     batch_size=batch_size)
+    add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name, 
+                     qloc_file_name, batch_size=batch_size)
 
 
 if __name__ == '__main__':
