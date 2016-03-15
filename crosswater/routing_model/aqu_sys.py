@@ -365,7 +365,7 @@ class VarSys(object):
         """
         return self.progvar+self.constvar+self.reallistvar+self.formvar
         
-        
+
 
 class CompSys(object):
     """Compartment System
@@ -375,8 +375,9 @@ class CompSys(object):
         self.input_file_name = config['routing_model']['compartment_output_aqu']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._compart_names = self._compart_names()
+            self._last_compart = self._last_compart()
             self.rivcomp = self.rivcomp()
-    
+            
     def _compart_names(self):
         """Return list of compartment names        
         """
@@ -403,7 +404,15 @@ class CompSys(object):
             x0 = table['start_x']
             L = table['comp_length']
         return x0+L
-        
+    
+    def _last_compart(self):
+        """Return last compartment of riversystem.
+        """
+        node = self.hdf_input.get_node('/','links')
+        table = node.read()
+        compart = table['fromCompart']
+        res = [i for i in self._compart_names if i.encode('utf-8') not in compart]
+        return res
             
     def rivcomp(self):
         """River compartments
@@ -451,20 +460,14 @@ class CompSys(object):
             name = compart
             description = 'River reach '+compart
             comp_index = 0
-            
             variables = brace('C')
-            
             processes = ''
             active_calc = 'TRUE'
             up_input = 'Qin_{}*sph'.format(compart)
-            
             up_var = brace('C', 'Min_{}/hpd*ugpkg'.format(compart))
-            
             init_cond = brace(0, 'Q', 'Qinit_{}*sph'.format(compart), 0, 'z0', 'z0init_{}'.format(compart))
             lat_input = 'Qlat_{0}/Lc_{0}*sph'.format(compart)
-            
             lat_var = brace('C', '(Mlat_{0}/hpd*ugpkg)/(Qlat_{0}*sph)'.format(compart))
-            
             grid_pts = 8
             resolution = 'FALSE'
             Q_relacc = 0.001
@@ -486,12 +489,13 @@ class CompSys(object):
             dispersion_eq = ''
             sediment_mode = 'FALSE'
             sediment_prop = ''
-            #end_level_given = 'zB_{}+z0'.format(compart)
-            #end_level = 'GIVEN'
-            #method = 'DIFF'
             end_level_given = ''
             end_level = 'NORMAL'
             method = 'KIN'
+            if compart in self._last_compart:
+                end_level_given = 4
+                end_level = 'GIVEN'
+                method = 'DIFF'
             compartment = brace(unknown, name, description, comp_index, variables, processes, active_calc, \
                                  up_input, up_var, init_cond, lat_input, lat_var, grid_pts, resolution, Q_relacc, \
                                  Q_absacc,A_relacc, A_absacc, z0_relacc, z0_absacc, D_relacc, D_absacc, start_coord, \
