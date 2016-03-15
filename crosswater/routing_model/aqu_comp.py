@@ -646,19 +646,34 @@ class InitialConditions(object):
         self.compartments = Compartments.compartments
         self.comp_length = Compartments.comp_length
         self.riversegments_dbf = config['routing_model']['riversegments_path']
-        self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'MQ', 'X'])
+        self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'STRAHLER', 'MQ', 'X'])
         print('Done')
+        
+    def _runoff_depth(self, strahler):
+        """Estimates initial runoff depth in m from the Strahler number.
+        """
+        depth ={1: 0.05,
+                2: 0.1,
+                3: 0.5,
+                4: 1,
+                5: 2,
+                6: 3,
+                7: 4,
+                8: 5}
+        return depth.get(strahler)
 
     def table(self, compartment):
         """Returns numpy array with initial conditions.
         """
-        id_upstream = self.compartments.get(compartment)[0]
-        index = self.riversegments.get('WSO1_ID').index(int(id_upstream))
-        df = pandas.DataFrame(index=range(0,1), columns=['MQ', 'start_x', 'comp_length'], dtype='float')
+        id_first = self.compartments.get(compartment)[0]
+        index = self.riversegments.get('WSO1_ID').index(int(id_first))
+        df = pandas.DataFrame(index=range(0,1), columns=['MQ', 'h', 'start_x', 'comp_length'], dtype='float')
         df.MQ = self.riversegments.get('MQ')[index]
-        df.start_x = self.riversegments.get('X')[index]        
+        strahler = self.riversegments.get('STRAHLER')[index]
+        df.h = self._runoff_depth(strahler)
+        df.start_x = self.riversegments.get('X')[index]
         df.comp_length = self.comp_length[compartment]    
-        values = df.values.ravel().view(dtype=[('MQ', '<f8'),('start_x', '<f8'),('comp_length', '<f8')])
+        values = df.values.ravel().view(dtype=[('MQ', '<f8'),('h', '<f8'),('start_x', '<f8'),('comp_length', '<f8')])
         return values
               
     
