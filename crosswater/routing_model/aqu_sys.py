@@ -132,7 +132,7 @@ class VarSys(object):
             hinit_name = 'hinit_{}'.format(compart)
             hinit_description = 'Initial water depth'
             hinit_unit = 'm'
-            hinit_value = 5                        ######################################################
+            hinit_value = node['h'][0]
             hinit_stdev = 1
             hinit_min = 0
             hinit_max = 30
