@@ -116,11 +116,12 @@ class ModelRunner(object):
         """Write out from one run to HDF5 output file.
         """
         row = self.output_table.row
-        zipped = zip(out['discharge'], out['concentration'])
-        for step, (discharge, concentration) in enumerate(zipped, 1):
+        zipped = zip(out['discharge'], out['local_discharge'], out['concentration'])
+        for step, (discharge, local_discharge, concentration) in enumerate(zipped, 1):
             row['timestep'] = step                                   # h
             row['catchment'] = id_
             row['discharge'] = discharge                             # m3/s
+            row['local_discharge'] = local_discharge                 # m3/s
             row['concentration'] = concentration                     # ng/l
             row['load'] = concentration * discharge * 86400 * 10e-9  # kg/d
             row.append()
@@ -229,11 +230,11 @@ class Worker(Thread):
         """Create the text file for the input of T, P, an Q.
         """
         with open(str(self.txt_input_path), 'w') as fobj:
-            fobj.write('step\tT\tP\tQ\tEmptymeas\n')
+            fobj.write('step\tT\tP\tQ\tQloc\tEmptymeas\n')
             for step, row in enumerate(inputs):
-                fobj.write('{step}\t{T}\t{P}\t{Q}\tN/A\n'.format(
+                fobj.write('{step}\t{T}\t{P}\t{Q}\t{Qloc}\tN/A\n'.format(
                     step=step, T=row['temperature'], P=row['precipitation'],
-                    Q=row['discharge']))
+                    Q=row['discharge'], Qloc=row['local_discharge']))
 
     def _execute(self):
         """Run external program for catchment model.
@@ -264,10 +265,10 @@ class Worker(Thread):
     def _read_output(self):
         """Read output from catchment model.
         """
-        usecols = ['Q', 'CalcC_atrazin_{}'.format(self.id)]
+        usecols = ['Q', 'Qloc', 'CalcC_atrazin_{}'.format(self.id)]                      ################# change 
         out = pandas.read_csv(str(self.output_path), delim_whitespace=True,
                               usecols=usecols)
-        out.columns = pandas.Index(['discharge', 'concentration'])
+        out.columns = pandas.Index(['discharge', 'local_discharge', 'concentration'])
         self.queue.put((self.id, out))
         if not self.debug:
             for path in [self.input_path, self.txt_input_path,
@@ -295,5 +296,6 @@ class OutputValues(tables.IsDescription):
     timestep = tables.Int32Col()
     catchment = tables.StringCol(10)
     discharge = tables.Float64Col()       # m**3/s
+    local_discharge = tables.Float64Col() # m**3/s
     concentration = tables.Float64Col()   # ng/l
     load = tables.Float64Col()            # kg/d
