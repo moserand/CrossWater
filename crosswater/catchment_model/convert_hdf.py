@@ -65,7 +65,7 @@ def convert(in_file_name, out_file_name, batch_size=2, total=365 * 24):
         except AssertionError:
             print(set(id_data['timestep']))
             print(id_data)
-        values = id_data[['catchment', 'concentration', 'discharge', 'load']]
+        values = id_data[['catchment', 'concentration', 'discharge', 'local_discharge', 'load']]
         group = out_file.create_group('/', 'step_{}'.format(step))
         out_file.create_table(group, 'values', values,
                               filters=filters)
