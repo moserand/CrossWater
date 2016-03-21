@@ -347,7 +347,7 @@ class VarSys(object):
             A_compart = brace(1, A_name, A_description, A_unit, A_expression)
             A_.append(A_compart)
             P_name = 'P_'+compart
-            P_description = 'Cross sectional perimieter of compartment '+compart
+            P_description = 'Cross sectional perimeter of compartment '+compart
             P_unit = 'm'
             P_expression = 'w_{0}+2*h_{0}/cos(alpha)'.format(compart)         
             P_compart = brace(1, P_name, P_description, P_unit, P_expression)
@@ -493,7 +493,7 @@ class CompSys(object):
             end_level = 'NORMAL'
             method = 'KIN'
             if compart in self._last_compart:
-                end_level_given = 4
+                end_level_given = 4                                             ########################### change to initial water depth
                 end_level = 'GIVEN'
                 method = 'DIFF'
             compartment = brace(unknown, name, description, comp_index, variables, processes, active_calc, \

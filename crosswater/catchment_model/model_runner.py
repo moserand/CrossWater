@@ -265,7 +265,7 @@ class Worker(Thread):
     def _read_output(self):
         """Read output from catchment model.
         """
-        usecols = ['Q', 'Qloc', 'CalcC_atrazin_{}'.format(self.id)]                      ################# change 
+        usecols = ['Q', 'Qloc', 'CalcC_{}'.format(self.id)]                      ################# change 
         out = pandas.read_csv(str(self.output_path), delim_whitespace=True,
                               usecols=usecols)
         out.columns = pandas.Index(['discharge', 'local_discharge', 'concentration'])
