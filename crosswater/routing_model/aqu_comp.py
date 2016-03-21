@@ -744,7 +744,7 @@ class Aggregate(object):
         """Write input per timestep
         """
         for compartment in self.upstream_input.keys():
-            ids = self.lateral_input.get(compartment)
+            ids = self.upstream_input.get(compartment)
             outputvalues['compartment'] = compartment
             outputvalues['load_aggregated'] = in_table["load"][in_table['catchment'].isin(ids)].sum()
             outputvalues['discharge'] = in_table["discharge"][in_table['catchment'].isin(self.upstream_tributaries.get(compartment))].sum()
