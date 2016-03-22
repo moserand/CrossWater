@@ -123,7 +123,7 @@ class ModelRunner(object):
             row['discharge'] = discharge                             # m3/s
             row['local_discharge'] = local_discharge                 # m3/s
             row['concentration'] = concentration                     # ng/l
-            row['load'] = concentration * discharge * 86400 * 10e-9  # kg/d
+            row['load'] = concentration * discharge * 86400 * 1e-9   # kg/d
             row.append()
 
     def _run_all(self):
