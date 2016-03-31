@@ -116,14 +116,14 @@ class ModelRunner(object):
         """Write out from one run to HDF5 output file.
         """
         row = self.output_table.row
-        zipped = zip(out['discharge'], out['local_discharge'], out['concentration'])
-        for step, (discharge, local_discharge, concentration) in enumerate(zipped, 1):
+        zipped = zip(out['discharge'], out['local_discharge'], out['concentration'], out['load'])
+        for step, (discharge, local_discharge, concentration, load) in enumerate(zipped, 1):
             row['timestep'] = step                                   # h
             row['catchment'] = id_
             row['discharge'] = discharge                             # m3/s
             row['local_discharge'] = local_discharge                 # m3/s
             row['concentration'] = concentration                     # ng/l
-            row['load'] = concentration * discharge * 86400 * 1e-9   # kg/d
+            row['load'] = load * 24 *1e-3                            # kg/d (from g/h)
             row.append()
 
     def _run_all(self):
@@ -265,10 +265,10 @@ class Worker(Thread):
     def _read_output(self):
         """Read output from catchment model.
         """
-        usecols = ['Q', 'Qloc', 'CalcC_{}'.format(self.id)]                      ################# change 
+        usecols = ['Q', 'Qloc', 'Conc_{}'.format(self.id), 'Load_{}'.format(self.id)]
         out = pandas.read_csv(str(self.output_path), delim_whitespace=True,
                               usecols=usecols)
-        out.columns = pandas.Index(['discharge', 'local_discharge', 'concentration'])
+        out.columns = pandas.Index(['discharge', 'local_discharge', 'concentration', 'load'])
         self.queue.put((self.id, out))
         if not self.debug:
             for path in [self.input_path, self.txt_input_path,
