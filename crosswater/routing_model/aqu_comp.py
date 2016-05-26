@@ -331,7 +331,7 @@ class Compartments(object):
         print('define the compartments...', end='')
         self.riversegments_dbf = config['routing_model']['riversegments_path']
         self.catchment_dbf_file = config['preprocessing']['catchment_path']
-        self.nr_comp = int(config['routing_model']['nr_compartments'])   ##### TODO: default 0
+        self.nr_comp = int(config['routing_model']['nr_compartments']) + 1  ##### TODO: correct workaround (+ 1) within code
         self.ids_riversegments = self.read_ids(self.riversegments_dbf, 'WSO1_ID')
         self.ids_junctions = self.get_junctions()
         self.ids_headwater = self.get_headwater() 

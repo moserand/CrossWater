@@ -7,14 +7,9 @@ Aquasim variable definition.
 import fnmatch
 import math
 import numpy as np
-from collections import defaultdict
-import sys
-import itertools
 import tables
-import pandas
 from crosswater.read_config import read_config
-from crosswater.preprocessing.hdf_input import read_dbf_cols
-from crosswater.tools.time_helper import ProgressDisplay
+
 
 def brace(*args):
     """Put all arguments in {} and return in string. If argument type is a list, every element is in {}.
@@ -107,6 +102,8 @@ class VarSys(object):
             ugpkg: ug per kg (conversion factor)
             hinit_comp: Initial water depth(for every compartment)
             Lc_comp: Compartment length (for every compartment)
+            S_comp: Slope of river bed (for every compartment)
+            yintercept_: y intersept riverbed elevation caluclation with slope
         """
         alpha = brace(1, 'alpha', 'Angle river bed', 'rad', 0, 1, 0, math.pi/2, 'TRUE', 'FALSE')
         sph = brace(1, 'sph', 'convert time from 1/s to 1/h', 's/h', 3600, 0.001, 0, 1000000, 'FALSE','FALSE')
@@ -115,6 +112,8 @@ class VarSys(object):
         Qinit_ = []
         hinit_ = []
         Lc_ = []
+        S_ = []
+        yintercept_ = []
         for compart in self._compart_names:
             node = self.hdf_input.get_node('/','{}/initial_conditions'.format(compart)).read()
             Qinit_name = 'Qinit_{}'.format(compart)
@@ -153,13 +152,37 @@ class VarSys(object):
             Lc_compart = brace(1, Lc_name, Lc_description, Lc_unit, Lc_value, Lc_stdev, \
                                   Lc_min, Lc_max, Lc_active_sa, Lc_active_pe)
             Lc_.append(Lc_compart)
-        return output('CONSTVAR', alpha, sph, hpd, ugpkg, Qinit_, hinit_, Lc_)
+            S_name = 'S_{}'.format(compart)
+            S_description = 'Slope of river bed in compartment {}'.format(compart)
+            S_unit = ''
+            S_value = (node['zb_end'][0] - node['zb_0'][0]) / node['comp_length'][0]
+            S_stdev = 0.0001
+            S_min = 0.00001
+            S_max = 0.1
+            S_active_sa = 'FALSE'
+            S_active_pe = 'FALSE'
+            S_compart = brace(1, S_name, S_description, S_unit, S_value, S_stdev, \
+                                  S_min, S_max, S_active_sa, S_active_pe)
+            S_.append(S_compart)
+            yintercept_name = 'yintercept_{}'.format(compart)
+            yintercept_description = 'Y-intercept for river bed elevation calculation with slope'
+            yintercept_unit = 'm'
+            yintercept_value = node['zb_0'][0] - S_value * node['start_x'][0]
+            yintercept_stdev = 10
+            yintercept_min = 1
+            yintercept_max = 1000
+            yintercept_active_sa = 'FALSE'
+            yintercept_active_pe = 'FALSE'
+            yintercept_compart = brace(1, yintercept_name, yintercept_description, yintercept_unit, yintercept_value, yintercept_stdev, \
+                                  yintercept_min, yintercept_max, yintercept_active_sa, yintercept_active_pe)
+            yintercept_.append(yintercept_compart)
+        return output('CONSTVAR', alpha, sph, hpd, ugpkg, Qinit_, hinit_, Lc_, S_, yintercept_)
         
     def reallistvar(self):
         """List variables: Time-series or spatial data
         
             w_comp: River bed width (for every compartment)
-            zB_comp: River bed elevation (for every compartment)
+            zB_comp: River bed elevation (for every compartment) // alternative option often causing problems in Aquasim 
             Kst_comp: Strickler coefficient (for every compartment)
             Qin_comp: Upstream input discharge (for every compartment)
             Qlat_comp: Lateral input discharge (for every compartment)
@@ -167,7 +190,7 @@ class VarSys(object):
             Mlat_comp: Lateral input of substance, lateral load (for every compartment)
         """
         w_ = []
-        zB_ = []
+#        zB_ = []
         Kst_ = []
         Qin_ = []
         Qlat_ = []
@@ -192,23 +215,23 @@ class VarSys(object):
             w_compart = brace(1, w_name, w_description, w_unit, w_arg, w_stdev, w_relstdev, w_absstdev, \
                               w_min, w_max, w_interpol, w_smoothw, w_active_sa, w_stdev_list, brace(w_values))
             w_.append(w_compart)
-            zB_name ='zB_'+compart
-            zB_description = 'River bed elevation'
-            zB_unit = 'm'
-            zB_arg = 'x'
-            zB_stdev = 'TRUE'
-            zB_relstdev = 0
-            zB_absstdev = 1
-            zB_min = -10
-            zB_max = 4000
-            zB_interpol = 'LINEAR'
-            zB_smoothw = 1
-            zB_active_sa = 'FALSE'
-            zB_stdev_list = 'FALSE'
-            zB_values = zipping(node, 'x', 'zb')
-            zB_compart = brace(1, zB_name, zB_description, zB_unit, zB_arg, zB_stdev, zB_relstdev, zB_absstdev, \
-                              zB_min, zB_max, zB_interpol, zB_smoothw, zB_active_sa, zB_stdev_list, brace(zB_values))
-            zB_.append(zB_compart)
+#            zB_name ='zB_'+compart
+#            zB_description = 'River bed elevation'
+#            zB_unit = 'm'
+#            zB_arg = 'x'
+#            zB_stdev = 'TRUE'
+#            zB_relstdev = 0
+#            zB_absstdev = 1
+#            zB_min = -10
+#            zB_max = 4000
+#            zB_interpol = 'LINEAR'
+#            zB_smoothw = 1
+#            zB_active_sa = 'FALSE'
+#            zB_stdev_list = 'FALSE'
+#            zB_values = zipping(node, 'x', 'zb')
+#            zB_compart = brace(1, zB_name, zB_description, zB_unit, zB_arg, zB_stdev, zB_relstdev, zB_absstdev, \
+#                              zB_min, zB_max, zB_interpol, zB_smoothw, zB_active_sa, zB_stdev_list, brace(zB_values))
+#            zB_.append(zB_compart)
             Kst_name = 'Kst_'+compart
             Kst_description = 'Strickler coefficient'
             Kst_unit = 'm^(1/3)/s'
@@ -298,7 +321,7 @@ class VarSys(object):
             Mlat_compart = brace(1, Mlat_name, Mlat_description, Mlat_unit, Mlat_arg, Mlat_stdev, Mlat_relstdev, Mlat_absstdev, \
                                Mlat_min, Mlat_max, Mlat_interpol, Mlat_smoothw, Mlat_active_sa, Mlat_stdev_list, brace(Mlat_values))
             Mlat_.append(Mlat_compart)
-        return output('REALLISTVAR',w_, zB_, Kst_, Qin_, Qlat_, Min_, Mlat_)
+        return output('REALLISTVAR',w_, Kst_, Qin_, Qlat_, Min_, Mlat_) # , zb_)
     
     def statevar(self):
         """State variables
@@ -324,6 +347,7 @@ class VarSys(object):
             A_compart: Cross secitonal area (for every compartment)
             P_compart: Cross sectional perimeter (for every compartment)
             z0init_compart: Initial water level zB+hinit (for every compartment)
+            zB_compart: River bed elevation (for every compartment)
         """
         d = brace(1, 'd', 'Mean river depth', 'm', 'A/w')
         v = brace(1, 'v', 'Velocity', 'm/h', 'Q/A')
@@ -332,8 +356,14 @@ class VarSys(object):
         A_ = []
         P_ = []
         z0init_ = []
-        
+        zB_ =[]
         for compart in self._compart_names:
+            zB_name = 'zB_'+compart
+            zB_description = 'River bed elevation'
+            zB_unit = 'm'
+            zB_expression = 'S_{0}*x+yintercept_{0}'.format(compart)
+            zB_compart = brace(1, zB_name, zB_description, zB_unit, zB_expression)
+            zB_.append(zB_compart) 
             h_name = 'h_'+compart
             h_description = 'Maximum water depth'
             h_unit = 'm'
@@ -358,7 +388,7 @@ class VarSys(object):
             z0init_expression = 'zB_{0}+hinit_{0}'.format(compart)
             z0init_compart = brace(1, z0init_name, z0init_description, z0init_unit, z0init_expression)
             z0init_.append(z0init_compart)
-        return output('FORMVAR', d, v, Qplot, h_, A_, P_, z0init_)
+        return output('FORMVAR', zB_, d, v, Qplot, h_, A_, P_, z0init_ )
                         
     def text(self):
         """Run thread.
