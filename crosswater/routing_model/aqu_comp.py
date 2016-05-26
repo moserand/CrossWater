@@ -515,6 +515,14 @@ class Links(object):
             df.toCompart[i] = "C"+toCompart
             i+=1
         return df
+           
+    @staticmethod
+    def next_comp(compartment, compartment_links):
+        next_comp = None
+        if compartment in set(compartment_links.fromCompart):
+            index = compartment_links.fromCompart[compartment_links.fromCompart == compartment].index[0]
+            next_comp = compartment_links.get('toCompart')[index]
+        return next_comp
     
     def upstream_tributaries(self):
         """Dictionary with compartment name as key and tributary outlets as value.
@@ -638,15 +646,20 @@ class Parameterization(object):
 class InitialConditions(object):
     """Initial conditions of the compartments.
     
-        Initial discharge 'MQ' for every compartment from the dbf file riversegments.
+        Initial discharge 'MQ' for every compartment,
+        initial water level h based on estimation from Strahler order,
+        start coordinate along x of compartment,        
+        compartment length
+        and river bed elevation at start and end of compartment.
     """
-    def __init__(self, config_file, Compartments):
+    def __init__(self, config_file, Compartments, Links):
         config = read_config(config_file)
         print('initial conditions for compartments...', end='')
         self.compartments = Compartments.compartments
         self.comp_length = Compartments.comp_length
+        self.compartment_links = Links.compartment_links
         self.riversegments_dbf = config['routing_model']['riversegments_path']
-        self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'STRAHLER', 'MQ', 'X'])
+        self.riversegments = read_dbf_cols(self.riversegments_dbf, ['WSO1_ID', 'STRAHLER', 'MQ', 'X', 'ELEV'])
         print('Done')
         
     def _runoff_depth(self, strahler):
@@ -666,14 +679,29 @@ class InitialConditions(object):
         """Returns numpy array with initial conditions.
         """
         id_first = self.compartments.get(compartment)[0]
-        index = self.riversegments.get('WSO1_ID').index(int(id_first))
-        df = pandas.DataFrame(index=range(0,1), columns=['MQ', 'h', 'start_x', 'comp_length'], dtype='float')
-        df.MQ = self.riversegments.get('MQ')[index]
-        strahler = self.riversegments.get('STRAHLER')[index]
+        index_first = self.riversegments.get('WSO1_ID').index(int(id_first))
+        ncomp = Links.next_comp(compartment, self.compartment_links)
+        if ncomp:
+            id_last = self.compartments.get(ncomp)[0]
+        else:
+            id_last = self.compartments.get(compartment)[-1]
+        index_last = self.riversegments.get('WSO1_ID').index(int(id_last))   
+        df = pandas.DataFrame(index=range(0,1), 
+                              columns=['MQ', 'h', 'start_x', 'comp_length','zb_0', 'zb_end'], 
+                              dtype='float')
+        df.MQ = self.riversegments.get('MQ')[index_first]
+        strahler = self.riversegments.get('STRAHLER')[index_first]
         df.h = self._runoff_depth(strahler)
-        df.start_x = self.riversegments.get('X')[index]
-        df.comp_length = self.comp_length[compartment]    
-        values = df.values.ravel().view(dtype=[('MQ', '<f8'),('h', '<f8'),('start_x', '<f8'),('comp_length', '<f8')])
+        df.start_x = self.riversegments.get('X')[index_first]
+        df.comp_length = self.comp_length[compartment]
+        df.zb_0 = self.riversegments.get('ELEV')[index_first]
+        df.zb_end = self.riversegments.get('ELEV')[index_last]        
+        values = df.values.ravel().view(dtype=[('MQ', '<f8'),
+                                               ('h', '<f8'),
+                                               ('start_x', '<f8'),
+                                               ('comp_length', '<f8'),
+                                               ('zb_0', '<f8'),
+                                               ('zb_end', '<f8')])
         return values
               
     

@@ -22,7 +22,7 @@ def run_routing():
     compartments = Compartments(config_file, tributaries)
     links = Links(config_file, tributaries, compartments)
     parameterization = Parameterization(config_file, compartments)
-    initialconditions = InitialConditions(config_file, compartments)
+    initialconditions = InitialConditions(config_file, compartments, links)
     aggregate = Aggregate(config_file, tributaries, compartments, links, parameterization, initialconditions)       
     aggregate.run()
     print('')
