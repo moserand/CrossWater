@@ -113,6 +113,7 @@ def create_hdf_file(file_name, tot_areas, appl_areas, appl_rates):
         # create new group (where, name, title)        
         group = h5_file.create_group('/', 'catch_{}'.format(id_),
                                      'catchment {}'.format(id_))
+        
         # create new table (where, name, description, title)
         table = h5_file.create_table(group, 'parameters', Parameters,
                                      'constant parameters')
@@ -137,7 +138,7 @@ def create_hdf_file(file_name, tot_areas, appl_areas, appl_rates):
     h5_file.close()
 
 
-def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name, qloc_file_name,
+def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name, qloc_file_name, timesteps_per_day, 
                      batch_size=None, total=365 * 24):
     """Add input with pandas.
     """
@@ -187,8 +188,10 @@ def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name, qloc_f
     time_steps = int_steps.to_records(index=False)
     h5_file.create_table('/', 'time_steps', time_steps,
                          'time steps for all catchments')
+    h5_file.create_table('/', 'steps_per_day', 
+                         numpy.array([(timesteps_per_day,)], dtype=[('steps_per_day', '<i8')]), 
+                         'time steps for all catchments')
     h5_file.close()
-
 
 def get_first_ids(q_file_name, max_ids):
     """Get first `max_ids` from the dicharge file.
@@ -208,6 +211,7 @@ def preprocess(config_file):
     q_file_name = config['preprocessing']['discharge_path']
     qloc_file_name = config['preprocessing']['local_discharge_path']
     max_ids = config['preprocessing']['max_ids']
+    timesteps_per_day = config['preprocessing']['timesteps_per_day']
     ids = None
     if max_ids:
         ids = get_first_ids(q_file_name, max_ids)
@@ -222,7 +226,8 @@ def preprocess(config_file):
         strahler, tot_areas, appl_areas, appl_rates, strahler_limit)
     create_hdf_file(h5_file_name, tot_areas, appl_areas, appl_rates)
     add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name, 
-                     qloc_file_name, batch_size=batch_size)
+                     qloc_file_name, timesteps_per_day, batch_size=batch_size)
+
 
 
 if __name__ == '__main__':
