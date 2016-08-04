@@ -41,6 +41,9 @@ class ModelRunner(object):
         self.program_path = Path(__file__).parents[2] / Path('substance_program')
         self._make_template_name()
         self._open_files()
+        
+        self.steps_per_day = self._read_steps_per_day()
+        
         self._prepare_tmp()
         self.output_table = None
         self._init_hdf_output()
@@ -75,6 +78,7 @@ class ModelRunner(object):
         self.hdf_output = tables.open_file(self.output_file_name, mode='w',
                                            title='Crosswater results')
 
+
     def _init_hdf_output(self):
         """Create empty output tables with timestep, ID, Q, and C.
         """
@@ -103,9 +107,16 @@ class ModelRunner(object):
         """Read whole input table.
         """
         # pylint: disable=protected-access
-        parameters_table = group._f_get_child('inputs')
+        parameters_table = group._f_get_child('inputs')                                   ####
         return parameters_table[:]
-
+    
+    def _read_steps_per_day(self):
+        """Read whole input table.
+        """
+        # pylint: disable=protected-access
+        table = self.hdf_input.get_node('/steps_per_day')
+        return table.read()['steps_per_day'][0]
+        
     def _read_parameters_inputs(self, id_):
         """Read parameters and inputs for gibe ID.
         """
@@ -150,7 +161,8 @@ class ModelRunner(object):
                     counter += 1
                     prog.show_progress(counter, additional=id_)
                     parameters, inputs = self._read_parameters_inputs(id_)
-                    worker = Worker(id_, path, parameters, inputs,
+                    worker = Worker(id_, path, parameters, inputs, 
+                                    self.steps_per_day,
                                     self.layout_xml_path,
                                     self.layout_name_template,
                                     self.queue,
@@ -186,7 +198,7 @@ class ModelRunner(object):
 class Worker(Thread):
     """One model run.
     """
-    def __init__(self, id_, path, parameters, inputs, layout_xml_path,
+    def __init__(self, id_, path, parameters, inputs, steps_per_day, layout_xml_path,
                  layout_name_template, queue, debug=False, use_wine=False):
         # pylint: disable=too-many-arguments
         super().__init__()
@@ -194,6 +206,7 @@ class Worker(Thread):
         self.path = path
         self.parameters = parameters
         self.inputs = inputs
+        self.steps_per_day = steps_per_day
         self.layout_xml_path = layout_xml_path
         self.layout_name_template = layout_name_template
         self.queue = queue
@@ -233,9 +246,9 @@ class Worker(Thread):
             fobj.write('step\tT\tP\tQ\tQloc\tEmptymeas\n')
             for step, row in enumerate(inputs):
                 fobj.write('{step}\t{T}\t{P}\t{Q}\t{Qloc}\tN/A\n'.format(
-                    step=step, T=row['temperature'], P=row['precipitation'],
+                    step=step/self.steps_per_day, T=row['temperature'], P=row['precipitation'],
                     Q=row['discharge'], Qloc=row['local_discharge']))
-
+                
     def _execute(self):
         """Run external program for catchment model.
         """
