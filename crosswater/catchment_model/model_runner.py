@@ -33,8 +33,8 @@ class ModelRunner(object):
         debug = config['catchment_model']['debug'].strip().lower()
         if debug in ['true', 'yes', 'y']:
             self.debug = True
-        self.input_file_name = config['catchment_model']['hdf_input_path']
-        self.output_file_name = config['catchment_model']['output_path']
+        self.input_file_name = config['catchment_model']['input_catchments_path']
+        self.output_file_name = config['catchment_model']['output_catchments_path']
         self.tmp_path = Path(config['catchment_model']['tmp_path'])
         self.layout_xml_path = Path(
             config['catchment_model']['layout_xml_path'])

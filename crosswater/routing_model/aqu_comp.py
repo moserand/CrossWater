@@ -162,89 +162,6 @@ class OutputValues(tables.IsDescription):
     discharge = tables.Float64Col()         # m**3/s
     load_aggregated = tables.Float64Col()   # kg/d    
     
-
-#class LoadAggregationTributaries(object):
-#    """Aggregating loads per timestep for the tributaries along the river
-#    """
-#    def __init__(self, config_file):
-#        config = read_config(config_file)
-#        self.input_file_name = config['routing_model']['steps_input_path']
-#        self.output_file_name = config['routing_model']['steps_output_aqu']
-#        #self.csv_file_name = config['routing_model']['csv_output_aqu']
-#        self.riversegments_dbf = config['routing_model']['riversegments_path']
-#        self.catchment_dbf_file = config['preprocessing']['catchment_path']
-#        self.tributaries = Tributaries(config_file)
-#            
-#    def _open_files(self):
-#        """Open HDF5 input and output files.
-#        """
-#        self.hdf_input = tables.open_file(self.input_file_name, mode='r')
-#        self.hdf_output = tables.open_file(self.output_file_name, mode='w',
-#                                           title='Crosswater aggregated results per timestep')
-#    
-#    def _close_files(self):
-#        """Close HDF5 input and output files.
-#        """
-#        self.hdf_input.close()
-#        self.hdf_output.close()
-#
-#    def _write_output(self, step, in_table, outputvalues):
-#        """Write output per timestep
-#        """
-#        for id_outlet in self.tributaries._ids_tributary_outlets:
-#            if not in_table['catchment'].str.contains(id_outlet).any():       
-#                continue
-#            ids = [str(id_) for id_ in self.tributaries.ids_tributaries[id_outlet]]
-#            outputvalues['catchment_outlet'] = id_outlet
-#            outputvalues['load_aggregated'] = in_table["load"][in_table['catchment'].isin(ids)].sum()
-#            outputvalues['discharge'] = in_table["discharge"][in_table['catchment']==str(id_outlet)]
-#            outputvalues.append()
-#
-#    def aggregate(self, total):
-#        """Aggregate loads for every timestep
-#        """
-#        print('aggregate loads and write to output file...')
-#        prog = ProgressDisplay(total)
-#        for step in range(0,total):
-#            prog.show_progress(step + 1, force=True)
-#            in_table = pandas.read_hdf(self.input_file_name, '/step_{}/values'.format(step), mode='r')
-#            filters = tables.Filters(complevel=5, complib='zlib')
-#            out_group = self.hdf_output.create_group('/', 'step_{}'.format(step))
-#            out_table = self.hdf_output.create_table(out_group, 'values', OutputValues, filters=filters)
-#            outputvalues = out_table.row
-#            self._write_output(step, in_table, outputvalues)
-#            out_table.flush()
-#        print()
-#        print(prog.last_display)
-#    
-#    def table_outlets(self):
-#        """Table with catchment ids and ids of outlet.
-#        """
-#        ids=list(itertools.chain(*self.tributaries.ids_tributaries.values()))
-#        table = np.empty(shape=(len(ids),1), dtype=[('catchment', 'S6'),('catchment_outlet', 'S6')])
-#        for i in range(len(ids)):
-#            id_ = ids[i]
-#            table['catchment'][i][0] = id_
-#            key=[k for k, v in self.tributaries.ids_tributaries.items() if id_ in v]
-#            table['catchment_outlet'][i][0] = key[0]
-#        self.hdf_output.create_table('/', 'table_outlets', table)
-#        #self.write_table_csv(table)
-#    
-#    def write_table_csv(self, table):
-#        """Write  catchment ids and ids of outlet to csv.
-#        """
-#        with open(self.csv_file_name, "w") as fp:
-#            fp.write('catchment, catchment_outlet\n')
-#            fp.write('\n'.join('{}, {}'.format(int(x[0][0]),int(x[0][1])) for x in table))
-#    
-#    def run(self):
-#        """Run thread.
-#        """
-#        self._open_files()
-#        self.table_outlets()
-#        self.aggregate(total=2) #365*24)
-#        self._close_files()
-  
         
 class Tributaries(object):
     """Get all tributaries to the rivernetwork.
@@ -715,7 +632,7 @@ class Aggregate(object):
     """
     def __init__(self, config_file, Tributaries, Compartments, Links, Parameterization, InitialConditions):
             config = read_config(config_file)
-            self.input_file_name = config['routing_model']['steps_input_path']
+            self.input_file_name = config['routing_model']['input_steps_path']
             self.output_file_name = config['routing_model']['steps_output_aqu']
             self.compartments = Compartments.compartments
             self.compartment_links = Links.compartment_links

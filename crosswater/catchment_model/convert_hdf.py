@@ -80,6 +80,6 @@ def run_convertion(config_file, batch_size):
     print()
     print('converting output')
     config = read_config(config_file)
-    in_file_name = config['catchment_model']['output_path']
-    out_file_name = config['catchment_model']['steps_output_path']
+    in_file_name = config['catchment_model']['output_catchments_path']
+    out_file_name = config['catchment_model']['output_steps_path']
     convert(in_file_name, out_file_name, batch_size=batch_size)
