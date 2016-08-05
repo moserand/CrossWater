@@ -1,5 +1,6 @@
 """
-Aquasim variable definition.
+Aquasim system. 
+Definition of variables, processes, compartments and links in the Aquasim format.
 
 @author: moserand
 """
@@ -61,7 +62,7 @@ class VarSys(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['compartment_output_aqu']
+        self.input_file_name = config['routing_model']['output_aqu_compartment_path']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._compart_names = self._compart_names()
             self.progvar = self.progvar()
@@ -402,7 +403,7 @@ class CompSys(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['compartment_output_aqu']
+        self.input_file_name = config['routing_model']['output_aqu_compartment_path']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._compart_names = self._compart_names()
             self._last_compart = self._last_compart()
@@ -523,7 +524,7 @@ class CompSys(object):
             end_level = 'NORMAL'
             method = 'KIN'
             if compart in self._last_compart:
-                end_level_given = 4                                             ########################### change to initial water depth
+                end_level_given = 4                                             ### change to initial water depth
                 end_level = 'GIVEN'
                 method = 'DIFF'
             compartment = brace(unknown, name, description, comp_index, variables, processes, active_calc, \
@@ -541,7 +542,7 @@ class LinkSys(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['compartment_output_aqu']
+        self.input_file_name = config['routing_model']['output_aqu_compartment_path']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._links = self._links()
             self.advlink = self.advlink()
@@ -588,7 +589,7 @@ class CalcSys(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['compartment_output_aqu']
+        self.input_file_name = config['routing_model']['output_aqu_compartment_path']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._compart_names = self._compart_names()
             self._timesteps = self._timesteps()

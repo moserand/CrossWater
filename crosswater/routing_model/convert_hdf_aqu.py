@@ -17,8 +17,8 @@ class Convert(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['steps_output_aqu']
-        self.output_file_name = config['routing_model']['compartment_output_aqu']
+        self.input_file_name = config['routing_model']['output_aqu_steps_path']
+        self.output_file_name = config['routing_model']['output_aqu_compartment_path']
     
     def count_steps(self, input_file):
         """Count timesteps 
