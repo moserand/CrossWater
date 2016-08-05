@@ -16,7 +16,7 @@ class Convert(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.input_file_name = config['routing_model']['steps_output_path']
+        self.input_file_name = config['routing_model']['input_steps_path']
         self.output_file_name = config['routing_model']['catchment_output_path']
         
     def _open_files(self):
