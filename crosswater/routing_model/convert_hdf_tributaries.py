@@ -17,7 +17,7 @@ class Convert(object):
     def __init__(self, config_file):
         config = read_config(config_file)
         self.input_file_name = config['routing_model']['input_steps_path']
-        self.output_file_name = config['routing_model']['catchment_output_path']
+        self.output_file_name = config['routing_model']['output_catchments_path']   ### missing in current config file
         
     def _open_files(self):
         """Open HDF5 input and output files.

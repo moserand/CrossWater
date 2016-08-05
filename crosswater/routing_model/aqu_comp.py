@@ -1,4 +1,4 @@
-"""Aquasim compartments, links, parameterization and input
+"""Aquasim compartments, links, parameterization and input.
 """
 
 from collections import defaultdict
@@ -172,7 +172,7 @@ class Tributaries(object):
     """
     def __init__(self, config_file):
         config = read_config(config_file)
-        self.csv_file_name = config['routing_model']['csv_output_aqu']
+        self.csv_file_name = config['routing_model']['output_aqu_csv_path']
         self.riversegments_dbf = config['routing_model']['riversegments_path']
         self.catchment_dbf_file = config['preprocessing']['catchment_path']
         self.areas = self.get_value_by_id('AREA')
@@ -633,7 +633,7 @@ class Aggregate(object):
     def __init__(self, config_file, Tributaries, Compartments, Links, Parameterization, InitialConditions):
             config = read_config(config_file)
             self.input_file_name = config['routing_model']['input_steps_path']
-            self.output_file_name = config['routing_model']['steps_output_aqu']
+            self.output_file_name = config['routing_model']['output_aqu_steps_path']
             self.compartments = Compartments.compartments
             self.compartment_links = Links.compartment_links
             self.lateral_tributaries = Links.lateral_tributaries
