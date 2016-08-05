@@ -16,6 +16,7 @@ import pandas
 import tables
 
 from crosswater.read_config import read_config
+from crosswater.read_config import make_abs_paths
 from crosswater.tools.hdf5_helpers import find_ids
 from crosswater.tools.path_helper import ChDir
 from crosswater.tools.time_helper import ProgressDisplay
@@ -37,13 +38,13 @@ class ModelRunner(object):
         self.tmp_path = Path(config['catchment_model']['tmp_path'])
         self.layout_xml_path = Path(
             config['catchment_model']['layout_xml_path'])
+        self.param_txt_path = Path(
+            config['catchment_model']['param_txt_path'])
         self.number_of_workers = config['catchment_model']['number_of_workers']
         self.program_path = Path(__file__).parents[2] / Path('substance_program')
         self._make_template_name()
         self._open_files()
-        
         self.steps_per_day = self._read_steps_per_day()
-        
         self._prepare_tmp()
         self.output_table = None
         self._init_hdf_output()
@@ -58,6 +59,9 @@ class ModelRunner(object):
         self.layout_name_template = '{stem}_{{id}}{suffix}'.format(
             stem=self.layout_xml_path.stem,
             suffix=self.layout_xml_path.suffix)
+        self.param_name_template = '{stem}_{{id}}{suffix}'.format(
+            stem=self.param_txt_path.stem,
+            suffix=self.param_txt_path.suffix)
 
     def _prepare_tmp(self):
         """Create tmp path and worker paths. Copy executable.
@@ -77,7 +81,6 @@ class ModelRunner(object):
         self.hdf_input = tables.open_file(self.input_file_name, mode='r')
         self.hdf_output = tables.open_file(self.output_file_name, mode='w',
                                            title='Crosswater results')
-
 
     def _init_hdf_output(self):
         """Create empty output tables with timestep, ID, Q, and C.
@@ -165,6 +168,8 @@ class ModelRunner(object):
                                     self.steps_per_day,
                                     self.layout_xml_path,
                                     self.layout_name_template,
+                                    self.param_txt_path,
+                                    self.param_name_template,
                                     self.queue,
                                     debug=self.debug,
                                     use_wine=self.use_wine)
@@ -199,7 +204,8 @@ class Worker(Thread):
     """One model run.
     """
     def __init__(self, id_, path, parameters, inputs, steps_per_day, layout_xml_path,
-                 layout_name_template, queue, debug=False, use_wine=False):
+                 layout_name_template, param_txt_path, param_name_template, queue, 
+                 debug=False, use_wine=False):
         # pylint: disable=too-many-arguments
         super().__init__()
         self.id = id_
@@ -209,11 +215,15 @@ class Worker(Thread):
         self.steps_per_day = steps_per_day
         self.layout_xml_path = layout_xml_path
         self.layout_name_template = layout_name_template
+        self.param_txt_path = param_txt_path
+        self.param_name_template = param_name_template
         self.queue = queue
         self.debug = debug
         self.use_wine = use_wine
         self.output_path = self.path / 'out_{}.txt'.format(self.id)
         self.input_path = self.path / self.layout_name_template.format(
+            id=self.id)
+        self.param_path = self.path / self.param_name_template.format(
             id=self.id)
         self.txt_input_path = self.path / Path('input_{}.txt'.format(self.id))
         self.daemaon = True
@@ -222,6 +232,7 @@ class Worker(Thread):
         """Create input files.
         """
         self._make_layout(self.parameters)
+        self._make_param()
         self._make_time_varying_input(self.inputs)
 
     def _make_layout(self, parameters):
@@ -238,6 +249,18 @@ class Worker(Thread):
         model_layout_path = self.path / layout_file_name
         with open(str(model_layout_path), 'w') as fobj:
             fobj.write(layout)
+    
+    def _make_param(self):
+        """Create the txt file for the parameters
+        """
+        with open(str(self.param_txt_path)) as fobj:
+            param_template = fobj.read()
+        # substitution of {id}
+        param = param_template.format(id=self.id)
+        param_file_name = Path(self.param_name_template.format(id=self.id))
+        model_param_path = self.path / param_file_name
+        with open(str(model_param_path), 'w') as fobj:
+            fobj.write(param)
 
     def _make_time_varying_input(self, inputs):
         """Create the text file for the input of T, P, an Q.
@@ -252,7 +275,7 @@ class Worker(Thread):
     def _execute(self):
         """Run external program for catchment model.
         """
-        cmd_list = ['server.exe', str(self.input_path), 'RUN',
+        cmd_list = ['server.exe', str(self.input_path), 'RUN', str(self.param_path),
                     str(self.output_path)]
         shell = True
         if self.use_wine:
@@ -312,3 +335,4 @@ class OutputValues(tables.IsDescription):
     local_discharge = tables.Float64Col() # m**3/s
     concentration = tables.Float64Col()   # ng/l
     load = tables.Float64Col()            # kg/d
+
