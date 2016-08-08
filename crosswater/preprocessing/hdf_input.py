@@ -218,8 +218,8 @@ def preprocess(config_file):
     batch_size = config['preprocessing']['batch_size']
     strahler = get_strahler(config['preprocessing']['catchment_path'], ids)
     tot_areas = get_tot_areas(config['preprocessing']['catchment_path'], ids)
-    sel_areas = config['preprocessing']['selected_areas'].split(', ')    
-    appl_areas = get_appl_areas(config['preprocessing']['landcover_path'], sel_areas, ids)
+    sel_areas = config['preprocessing']['selected_areas'].split(', ')                       #########
+    appl_areas = get_appl_areas(config['preprocessing']['landcover_path'], sel_areas, ids)  #########
     appl_rates = get_appl_rates(config['preprocessing']['micropollutant_path'], ids)
     strahler_limit = config['preprocessing']['strahler_limit'] 
     strahler, tot_areas, appl_areas, appl_rates = filter_strahler_lessthan(

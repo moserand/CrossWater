@@ -102,6 +102,5 @@ class Convert(object):
             self.links()
             self.convert()
 
-        
-     
+
         
