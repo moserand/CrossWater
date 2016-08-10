@@ -186,7 +186,7 @@ class Aggregate(object):
             ids = self.upstream_input.get(outlet)
             outputvalues['outlet'] = outlet
             outputvalues['load_aggregated'] = in_table["load"][in_table['catchment'].isin(ids)].sum()
-            outputvalues['discharge'] = in_table["discharge"][in_table.catchment[in_table.catchment == outlet].index.tolist()]
+            outputvalues['discharge'] = in_table["discharge"][in_table.catchment[in_table.catchment == outlet].index.item()]
             outputvalues.append()
             
     

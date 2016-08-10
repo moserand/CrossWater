@@ -20,6 +20,7 @@ class Convert(object):
         config = read_config(config_file)
         self.input_file_name = config['routing_model']['output_aggreg_steps_path']
         self.output_file_name = config['routing_model']['output_aggreg_path']
+        self.csv_folder = config['routing_model']['csv_folder']
     
     def count_steps(self, input_file):
         """Count timesteps 
@@ -50,24 +51,33 @@ class Convert(object):
             in_table.flush()
         return values
     
-        
     def convert(self):
-        """Write values to output table.
+        """Write values to hdf output table and csv files.
         """
         print('convert from steps to outlets...')
         prog = ProgressDisplay(len(self.outlets))
         step = 0
         filters = tables.Filters(complevel=5, complib='zlib')
-        for out in self.outlets:
+        for outlet in self.outlets:
             prog.show_progress(step + 1, force=True)
             step = step + 1
-            group = self.hdf_output.create_group('/', '{}'.format(str(out.decode('ascii'))))
-            values = self._get_values(out, 'upstream_input')
+            group = self.hdf_output.create_group('/', '{}'.format(str(outlet.decode('ascii'))))
+            values = self._get_values(outlet, 'upstream_input')
             self.hdf_output.create_table(group, 'upstream_input', values, filters=filters)
+            self.write_outletaggregation_csv(outlet, values)            
         print()
         print(prog.last_display)
         print('Done')
     
+    def write_outletaggregation_csv(self, outlet, values):
+        """Write aggragatet load to csv.
+        """
+        #print(outlet)
+        csv_file_name = self.csv_folder + outlet.decode('ascii') + ".txt"
+        with open(csv_file_name, "w") as fp:
+            fp.write('date, discharge, load\n')
+            [fp.write('{}\n'.format(str(value.tolist()).strip('[()]'))) for value in values ]
+             
     def run(self):
         """Run thread.
         """
