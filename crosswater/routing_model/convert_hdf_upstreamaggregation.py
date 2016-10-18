@@ -39,14 +39,17 @@ class Convert(object):
     def _get_values(self, out, input_type):
         """Get values of all timesteps for one outlet either lateral or upstream input.
         """
-        values = np.empty(shape=(self.steps,1), dtype=[('t', '<f8'), ('discharge', '<f8'), ('load_aggregated', '<f8')])
+        values = np.empty(shape=(self.steps,1), dtype=[('t', '<f8'), ('discharge', '<f8'), 
+                          ('load_aggregated', '<f8'),  ('local_discharge_aggregated', '<f8')])
         for step in range(self.steps):
             nodename = 'step_{}/'.format(step)+input_type
             in_table = self.hdf_input.get_node('/', nodename)
-            row = np.empty(shape=(1,1), dtype=[('t', '<f8'), ('discharge', '<f8'), ('load_aggregated', '<f8')])
+            row = np.empty(shape=(1,1), dtype=[('t', '<f8'), ('discharge', '<f8'), 
+                           ('load_aggregated', '<f8'), ('local_discharge_aggregated', '<f8')])  ##############
             row['t'] = [step]
             row['discharge'] = in_table.read_where('outlet==out')[['discharge']]
             row['load_aggregated'] = in_table.read_where('outlet==out')[['load_aggregated']]
+            row['local_discharge_aggregated'] = in_table.read_where('outlet==out')[['local_discharge_aggregated']]   ##############
             values[step] = row
             in_table.flush()
         return values
@@ -75,7 +78,7 @@ class Convert(object):
         #print(outlet)
         csv_file_name = self.csv_folder + outlet.decode('ascii') + ".txt"
         with open(csv_file_name, "w") as fp:
-            fp.write('date, discharge, load\n')
+            fp.write('date, discharge, load, discharge_aggregated\n')
             [fp.write('{}\n'.format(str(value.tolist()).strip('[()]'))) for value in values ]
              
     def run(self):

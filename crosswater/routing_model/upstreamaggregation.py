@@ -162,8 +162,8 @@ class OutputValues(tables.IsDescription):
     """
     outlet = tables.StringCol(10)           # WSO1_ID
     discharge = tables.Float64Col()         # m**3/s
-    load_aggregated = tables.Float64Col()   # kg/d    
-    
+    load_aggregated = tables.Float64Col()   # g/h    
+    local_discharge_aggregated = tables.Float64Col()                          ##########
 
 class Aggregate(object):
     """Aggregate loads from upstream input of the catchment and write to HDF.
@@ -186,6 +186,7 @@ class Aggregate(object):
             ids = self.upstream_input.get(outlet)
             outputvalues['outlet'] = outlet
             outputvalues['load_aggregated'] = in_table["load"][in_table['catchment'].isin(ids)].sum()
+            outputvalues['local_discharge_aggregated'] = in_table["local_discharge"][in_table['catchment'].isin(ids)].sum()
             outputvalues['discharge'] = in_table["discharge"][in_table.catchment[in_table.catchment == outlet].index.item()]
             outputvalues.append()
             

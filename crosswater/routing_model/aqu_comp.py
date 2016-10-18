@@ -632,7 +632,7 @@ class Aggregate(object):
     """
     def __init__(self, config_file, Tributaries, Compartments, Links, Parameterization, InitialConditions):
             config = read_config(config_file)
-            self.input_file_name = config['routing_model']['input_steps_path']
+            self.input_file_name = config['routing_model']['input_steps_buffered_path']
             self.output_file_name = config['routing_model']['output_aqu_steps_path']
             self.compartments = Compartments.compartments
             self.compartment_links = Links.compartment_links

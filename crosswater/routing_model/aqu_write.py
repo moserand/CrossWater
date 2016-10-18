@@ -65,5 +65,5 @@ def write_aqu(config_file):
         cas=CalcSys(config_file)
         calcsys(aqu, cas)
         ender(aqu)
-    aqu_edit = aqu_path[0:-4]+'_edit.aqu'
-    os.system('convedit {0} {1}'.format(aqu_path, aqu_edit))
+    #aqu_edit = aqu_path[0:-4]+'_edit.aqu'
+    #os.system('convedit {0} {1}'.format(aqu_path, aqu_edit))
