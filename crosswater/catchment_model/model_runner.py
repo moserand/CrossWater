@@ -130,14 +130,14 @@ class ModelRunner(object):
         """Write out from one run to HDF5 output file.
         """
         row = self.output_table.row
-        zipped = zip(out['discharge'], out['local_discharge'], out['concentration'], out['load'])
-        for step, (discharge, local_discharge, concentration, load) in enumerate(zipped, 1):
-            row['timestep'] = step                                   # h
+        zipped = zip(out['discharge'], out['local_discharge'], out['concentration'])
+        for step, (discharge, local_discharge, concentration) in enumerate(zipped, 1):
+            row['timestep'] = step                                         # h
             row['catchment'] = id_
-            row['discharge'] = discharge                             # m3/s
-            row['local_discharge'] = local_discharge                 # m3/s
-            row['concentration'] = concentration                     # ng/l
-            row['load'] = load                                       # g/h
+            row['discharge'] = discharge                                   # m3/s
+            row['local_discharge'] = local_discharge                       # m3/s
+            row['concentration'] = concentration                           # ng/l
+            row['load'] = concentration * local_discharge * 3600 * 1e-6    # g/h
             row.append()
 
     def _run_all(self):
@@ -301,14 +301,14 @@ class Worker(Thread):
     def _read_output(self):
         """Read output from catchment model.
         """
-        usecols = ['Q', 'Qloc', 'Conc_{}'.format(self.id), 'Load_{}'.format(self.id)]
+        usecols = ['Q', 'Qloc', 'Conc_{}'.format(self.id)]
         out = pandas.read_csv(str(self.output_path), delim_whitespace=True,
                               usecols=usecols)
-        out.columns = pandas.Index(['discharge', 'local_discharge', 'concentration', 'load'])
+        out.columns = pandas.Index(['discharge', 'local_discharge', 'concentration'])
         self.queue.put((self.id, out))
         if not self.debug:
             for path in [self.input_path, self.txt_input_path,
-                         self.output_path]:
+                         self.output_path, self.param_path]:
                 try:
                     os.remove(str(path))
                 # External progam may block. Try several times with timeout.
@@ -334,5 +334,5 @@ class OutputValues(tables.IsDescription):
     discharge = tables.Float64Col()       # m**3/s
     local_discharge = tables.Float64Col() # m**3/s
     concentration = tables.Float64Col()   # ng/l
-    load = tables.Float64Col()            # kg/d
+    load = tables.Float64Col()            # g/h
 
