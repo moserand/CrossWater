@@ -18,7 +18,7 @@ class Buffer_lakes(object):
     def __init__(self, config_file):
         config = read_config(config_file)
         self.catchment_dbf_file = config['preprocessing']['catchment_path']
-        self.lake_outlets = config["routing_model"]["lakes"].split(', ')
+        self.lake_outlets = config['routing_model']['lakes'].split(', ')
         self.input_file_name = config['routing_model']['input_steps_path']
         self.output_file_name = config['routing_model']['input_steps_buffered_path']
         

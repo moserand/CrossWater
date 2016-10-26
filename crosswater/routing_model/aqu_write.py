@@ -4,10 +4,9 @@ Write Aquasim input file from HDF input.
 @author: moserand
 """
 
-import os
 from crosswater.read_config import read_config
 # choose aqu_sys_hydro if only hydraulics should be written to aqu
-from crosswater.routing_model.aqu_sys import VarSys, CompSys, LinkSys, CalcSys
+from crosswater.routing_model.aqu_sys import VarSys, CompSys, LinkSys, CalcSys, ProcSys
 
 def header(file):
     file.write('\nAQUASIM\nVersion 2.0 (win/mfc)\n\n{AQUASYS}{' )
@@ -24,8 +23,9 @@ def varsys(file,vs):
     file.write(vs.formvar)
     file.write('}')
     
-def procsys(file):
+def procsys(file, ps):
     file.write('{PROCSYS}{')
+    file.write(ps.dynproc)
     file.write('}')
     
 def compsys(file, cs):
@@ -57,7 +57,8 @@ def write_aqu(config_file):
         options(aqu)
         vs = VarSys(config_file)
         varsys(aqu, vs)
-        procsys(aqu)
+        ps = ProcSys(config_file)
+        procsys(aqu, ps)
         cs = CompSys(config_file)
         compsys(aqu, cs)
         ls = LinkSys(config_file)

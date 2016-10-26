@@ -160,7 +160,7 @@ class OutputValues(tables.IsDescription):
     """
     compartment = tables.StringCol(10)      # WSO1_ID
     discharge = tables.Float64Col()         # m**3/s
-    load_aggregated = tables.Float64Col()   # kg/d    
+    load_aggregated = tables.Float64Col()   # g/h    
     
         
 class Tributaries(object):
