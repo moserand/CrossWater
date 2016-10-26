@@ -63,6 +63,7 @@ class VarSys(object):
     def __init__(self, config_file):
         config = read_config(config_file)
         self.input_file_name = config['routing_model']['output_aqu_compartment_path']
+        self.k_bio = config['routing_model']['biodegradation_rate']
         with tables.open_file(self.input_file_name, mode='r') as self.hdf_input:
             self._compart_names = self._compart_names()
             self.progvar = self.progvar()
@@ -100,7 +101,8 @@ class VarSys(object):
             Qinit_comp: Initial discharge (for every compartment)
             sph: seconds per hour (conversion factor)
             hpd: hours per day (conversion factor)
-            ugpkg: ug per kg (conversion factor)
+            ugpg: ug per g (conversion factor)
+            k_bio: rate of biodegradation
             hinit_comp: Initial water depth(for every compartment)
             Lc_comp: Compartment length (for every compartment)
             S_comp: Slope of river bed (for every compartment)
@@ -109,7 +111,8 @@ class VarSys(object):
         alpha = brace(1, 'alpha', 'Angle river bed', 'rad', 0, 1, 0, math.pi/2, 'TRUE', 'FALSE')
         sph = brace(1, 'sph', 'convert time from 1/s to 1/h', 's/h', 3600, 0.001, 0, 1000000, 'FALSE','FALSE')
         hpd = brace(1, 'hpd', 'convert time from d to h', 's/h', 24, 0.001, 0, 1000000, 'FALSE','FALSE')
-        ugpkg = brace(1, 'ugpkg', 'convert wheight from kg to ug', 's/h', 1000000000, 0.001, 0, 10000000000, 'FALSE','FALSE')
+        ugpg = brace(1, 'ugpg', 'convert wheight from ug to g', 'ug/g', 1000000, 0.001, 0, 10000000000, 'FALSE','FALSE')
+        k_bio = brace(1, 'k_bio', 'rate of biodegradation', '1/h', self.k_bio, 0.001, 0, 10, 'FALSE', 'FALSE')
         Qinit_ = []
         hinit_ = []
         Lc_ = []
@@ -177,7 +180,7 @@ class VarSys(object):
             yintercept_compart = brace(1, yintercept_name, yintercept_description, yintercept_unit, yintercept_value, yintercept_stdev, \
                                   yintercept_min, yintercept_max, yintercept_active_sa, yintercept_active_pe)
             yintercept_.append(yintercept_compart)
-        return output('CONSTVAR', alpha, sph, hpd, ugpkg, Qinit_, hinit_, Lc_, S_, yintercept_)
+        return output('CONSTVAR', alpha, sph, hpd, ugpg, k_bio, Qinit_, hinit_, Lc_, S_, yintercept_)
         
     def reallistvar(self):
         """List variables: Time-series or spatial data
@@ -191,7 +194,7 @@ class VarSys(object):
             Mlat_comp: Lateral input of substance, lateral load (for every compartment)
         """
         w_ = []
-#        zB_ = []
+        zB_ = []
         Kst_ = []
         Qin_ = []
         Qlat_ = []
@@ -216,23 +219,23 @@ class VarSys(object):
             w_compart = brace(1, w_name, w_description, w_unit, w_arg, w_stdev, w_relstdev, w_absstdev, \
                               w_min, w_max, w_interpol, w_smoothw, w_active_sa, w_stdev_list, brace(w_values))
             w_.append(w_compart)
-#            zB_name ='zB_'+compart
-#            zB_description = 'River bed elevation'
-#            zB_unit = 'm'
-#            zB_arg = 'x'
-#            zB_stdev = 'TRUE'
-#            zB_relstdev = 0
-#            zB_absstdev = 1
-#            zB_min = -10
-#            zB_max = 4000
-#            zB_interpol = 'LINEAR'
-#            zB_smoothw = 1
-#            zB_active_sa = 'FALSE'
-#            zB_stdev_list = 'FALSE'
-#            zB_values = zipping(node, 'x', 'zb')
-#            zB_compart = brace(1, zB_name, zB_description, zB_unit, zB_arg, zB_stdev, zB_relstdev, zB_absstdev, \
-#                              zB_min, zB_max, zB_interpol, zB_smoothw, zB_active_sa, zB_stdev_list, brace(zB_values))
-#            zB_.append(zB_compart)
+            zB_name ='zB_'+compart
+            zB_description = 'River bed elevation'
+            zB_unit = 'm'
+            zB_arg = 'x'
+            zB_stdev = 'TRUE'
+            zB_relstdev = 0
+            zB_absstdev = 1
+            zB_min = -10
+            zB_max = 4000
+            zB_interpol = 'LINEAR'
+            zB_smoothw = 1
+            zB_active_sa = 'FALSE'
+            zB_stdev_list = 'FALSE'
+            zB_values = zipping(node, 'x', 'zb')
+            zB_compart = brace(1, zB_name, zB_description, zB_unit, zB_arg, zB_stdev, zB_relstdev, zB_absstdev, \
+                              zB_min, zB_max, zB_interpol, zB_smoothw, zB_active_sa, zB_stdev_list, brace(zB_values))
+            zB_.append(zB_compart)
             Kst_name = 'Kst_'+compart
             Kst_description = 'Strickler coefficient'
             Kst_unit = 'm^(1/3)/s'
@@ -289,7 +292,7 @@ class VarSys(object):
             node = self.hdf_input.get_node('/','{}/upstream_input'.format(compart))
             Min_name = 'Min_'+compart
             Min_description = 'Upstream input load'
-            Min_unit = 'kg/d'
+            Min_unit = 'g/h'
             Min_arg = 't'
             Min_stdev = 'TRUE'
             Min_relstdev = 0
@@ -307,7 +310,7 @@ class VarSys(object):
             node = self.hdf_input.get_node('/','{}/lateral_input'.format(compart))
             Mlat_name = 'Mlat_'+compart
             Mlat_description = 'Upstream input load'
-            Mlat_unit = 'kg/d'
+            Mlat_unit = 'g/h'
             Mlat_arg = 't'
             Mlat_stdev = 'TRUE'
             Mlat_relstdev = 0
@@ -322,7 +325,7 @@ class VarSys(object):
             Mlat_compart = brace(1, Mlat_name, Mlat_description, Mlat_unit, Mlat_arg, Mlat_stdev, Mlat_relstdev, Mlat_absstdev, \
                                Mlat_min, Mlat_max, Mlat_interpol, Mlat_smoothw, Mlat_active_sa, Mlat_stdev_list, brace(Mlat_values))
             Mlat_.append(Mlat_compart)
-        return output('REALLISTVAR',w_, Kst_, Qin_, Qlat_, Min_, Mlat_) # , zb_)
+        return output('REALLISTVAR', w_, Kst_, Qin_, Qlat_, Min_, Mlat_, zB_)
     
     def statevar(self):
         """State variables
@@ -357,14 +360,14 @@ class VarSys(object):
         A_ = []
         P_ = []
         z0init_ = []
-        zB_ =[]
+#        zB_ =[]
         for compart in self._compart_names:
-            zB_name = 'zB_'+compart
-            zB_description = 'River bed elevation'
-            zB_unit = 'm'
-            zB_expression = 'S_{0}*x+yintercept_{0}'.format(compart)
-            zB_compart = brace(1, zB_name, zB_description, zB_unit, zB_expression)
-            zB_.append(zB_compart) 
+#            zB_name = 'zB_'+compart
+#            zB_description = 'River bed elevation'
+#            zB_unit = 'm'
+#            zB_expression = 'S_{0}*x+yintercept_{0}'.format(compart)
+#            zB_compart = brace(1, zB_name, zB_description, zB_unit, zB_expression)
+#            zB_.append(zB_compart) 
             h_name = 'h_'+compart
             h_description = 'Maximum water depth'
             h_unit = 'm'
@@ -389,14 +392,34 @@ class VarSys(object):
             z0init_expression = 'zB_{0}+hinit_{0}'.format(compart)
             z0init_compart = brace(1, z0init_name, z0init_description, z0init_unit, z0init_expression)
             z0init_.append(z0init_compart)
-        return output('FORMVAR', zB_, d, v, Qplot, h_, A_, P_, z0init_ )
+        return output('FORMVAR', d, v, Qplot, h_, A_, P_, z0init_ ) # , zB_)
                         
     def text(self):
         """Run thread.
         """
         return self.progvar+self.constvar+self.reallistvar+self.formvar
         
-
+        
+class ProcSys(object):
+    """Process System
+    """
+    def __init__(self, config_file):
+        config = read_config(config_file)
+        self.dynproc = self.dynproc()
+            
+    def dynproc(self):
+        """Dynamic processes
+        
+            biodegradation: degradation in water
+        """
+        unknown = 1
+        name = 'biodegradation'
+        description = 'degradation process in water'
+        rate = 'k_bio*C'
+        stoichiometry = brace('C', -1)
+        biodegradation = brace(unknown, name, description, rate, stoichiometry)
+        return output('DYNPROC', biodegradation)
+        
 
 class CompSys(object):
     """Compartment System
@@ -492,13 +515,13 @@ class CompSys(object):
             description = 'River reach '+compart
             comp_index = 0
             variables = brace('C')
-            processes = ''
+            processes = brace('biodegradation')
             active_calc = 'TRUE'
             up_input = 'Qin_{}*sph'.format(compart)
-            up_var = brace('C', 'Min_{}/hpd*ugpkg'.format(compart))
+            up_var = brace('C', 'Min_{}*ugpg'.format(compart))
             init_cond = brace(0, 'Q', 'Qinit_{}*sph'.format(compart), 0, 'z0', 'z0init_{}'.format(compart))
             lat_input = 'Qlat_{0}/Lc_{0}*sph'.format(compart)
-            lat_var = brace('C', '(Mlat_{0}/hpd*ugpkg)/(Qlat_{0}*sph)'.format(compart))
+            lat_var = brace('C', '(Mlat_{0}*ugpg)/(Qlat_{0}*sph)'.format(compart))
             grid_pts = 8
             resolution = 'FALSE'
             Q_relacc = 0.001
