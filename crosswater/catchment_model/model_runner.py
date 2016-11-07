@@ -259,6 +259,9 @@ class Worker(Thread):
         param = param_template.format(id=self.id)
         param_file_name = Path(self.param_name_template.format(id=self.id))
         model_param_path = self.path / param_file_name
+        if self.parameters['A_appl']==0:
+            cut = param.index('C_back')            
+            param = param[0:cut]
         with open(str(model_param_path), 'w') as fobj:
             fobj.write(param)
 
