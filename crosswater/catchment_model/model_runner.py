@@ -121,7 +121,7 @@ class ModelRunner(object):
         return table.read()['steps_per_day'][0]
         
     def _read_parameters_inputs(self, id_):
-        """Read parameters and inputs for gibe ID.
+        """Read parameters and inputs for give ID.
         """
         group = self.hdf_input.get_node('/', 'catch_{}'.format(id_))
         return self._read_parameters(group), self._read_inputs(group)

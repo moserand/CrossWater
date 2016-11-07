@@ -175,7 +175,8 @@ def add_input_tables(h5_file_name, t_file_name, p_file_name, q_file_name, qloc_f
             inputs = pandas.concat([temp_hourly[id_], precip[id_], dis[id_], locdis[id_]],
                                    axis=1)
             inputs.columns = ['temperature', 'precipitation', 'discharge', 'local_discharge']
-            input_table = inputs.to_records(index=False)
+            inputs['precipitation'] *= int(timesteps_per_day)
+            input_table = inputs.to_records(index=False)        
             name = 'catch_{}'.format(id_)
             group = get_child(name)
             h5_file.create_table(group, 'inputs', input_table,
