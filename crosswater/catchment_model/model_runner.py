@@ -40,6 +40,7 @@ class ModelRunner(object):
             config['catchment_model']['layout_xml_path'])
         self.param_txt_path = Path(
             config['catchment_model']['param_txt_path'])
+        self.ratio_area_cal = config['catchment_model']['ratio_herbicide_area_cal']
         self.number_of_workers = config['catchment_model']['number_of_workers']
         self.program_path = Path(__file__).parents[2] / Path('substance_program')
         self._make_template_name()
@@ -170,6 +171,7 @@ class ModelRunner(object):
                                     self.layout_name_template,
                                     self.param_txt_path,
                                     self.param_name_template,
+                                    self.ratio_area_cal,
                                     self.queue,
                                     debug=self.debug,
                                     use_wine=self.use_wine)
@@ -204,8 +206,8 @@ class Worker(Thread):
     """One model run.
     """
     def __init__(self, id_, path, parameters, inputs, steps_per_day, layout_xml_path,
-                 layout_name_template, param_txt_path, param_name_template, queue, 
-                 debug=False, use_wine=False):
+                 layout_name_template, param_txt_path, param_name_template, ratio_area_cal, 
+                 queue, debug=False, use_wine=False):
         # pylint: disable=too-many-arguments
         super().__init__()
         self.id = id_
@@ -217,6 +219,7 @@ class Worker(Thread):
         self.layout_name_template = layout_name_template
         self.param_txt_path = param_txt_path
         self.param_name_template = param_name_template
+        self.ratio_area_cal = ratio_area_cal
         self.queue = queue
         self.debug = debug
         self.use_wine = use_wine
@@ -259,11 +262,23 @@ class Worker(Thread):
         param = param_template.format(id=self.id)
         param_file_name = Path(self.param_name_template.format(id=self.id))
         model_param_path = self.path / param_file_name
-        if self.parameters['A_appl']==0:
-            cut = param.index('C_back')            
-            param = param[0:cut]
         with open(str(model_param_path), 'w') as fobj:
-            fobj.write(param)
+            if self.ratio_area_cal:
+                # substitution of C_back
+                fobj.write(self._replace_cback(param))
+            else:
+                fobj.write(param)
+            
+    def _replace_cback(self, param):
+        """Adapt C_back file with ratio of herbicide application and total area.
+        """
+        param_lines = param.splitlines()
+        area_ratio = self.parameters['A_appl']/self.parameters['A_tot']
+        for line in param_lines:
+            if 'C_back' in line:
+                cback_str = line.split()[1]
+                cback_new = str(float(cback_str)*area_ratio/self.ratio_area_cal)
+        return param.replace(cback_str, cback_new)
 
     def _make_time_varying_input(self, inputs):
         """Create the text file for the input of T, P, an Q.
