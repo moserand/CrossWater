@@ -270,7 +270,7 @@ class Worker(Thread):
                 fobj.write(param)
             
     def _replace_cback(self, param):
-        """Adapt C_back file with ratio of herbicide application and total area.
+        """Adapt C_back by ratio of herbicide application and total catchment area.
         """
         param_lines = param.splitlines()
         area_ratio = self.parameters['A_appl']/self.parameters['A_tot']
