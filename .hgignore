@@ -5,5 +5,12 @@ model_toy/**
 .cache
 **.wpr
 **.wpu
+**.ipynb
+
+Daten/Discharge/**
+Daten/Precipitation/**
+Daten/Temperature/**
+Daten/test/**
+substance_program/**
 
 
