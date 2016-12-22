@@ -10,7 +10,7 @@ from collections import Counter
 from itertools import chain
 
 class Buffer_lakes(object):
-    """Pollutant load coming from catchments are buffered assumin complet mixing.
+    """Pollutant load coming from catchments are buffered assuming complet mixing.
     
         Loads from catchments upstream of defined lake outputs are averaged over
         the entire time period.

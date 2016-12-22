@@ -1,0 +1,7 @@
+# this filemap is used to exclude specific files
+exclude Daten/Discharge
+exclude Daten/Precipitation
+exclude Daten/Temperature
+exclude substance_program/model_sources
+exclude aquasim/
+

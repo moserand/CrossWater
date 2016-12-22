@@ -172,7 +172,11 @@ class Aggregate(object):
         to the specified catchment.
     """
     def __init__(self, config_file, UpstreamCatchments):
-            config = read_config(config_file)
+            config = read_config(config_file)               
+            self.input_file_name = config['routing_model']['input_steps_path']
+            buffered_input = config['routing_model']['buffered_input'].strip().lower()
+            if buffered_input in ['true', 'yes', 'y']:
+                self.input_file_name = config['routing_model']['input_steps_buffered_path']               
             self.catchment_dbf_file = config['preprocessing']['catchment_path']
             self.input_file_name = config['routing_model']['input_steps_path']
             self.output_file_name = config['routing_model']['output_aggreg_steps_path']
