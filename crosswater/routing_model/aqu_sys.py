@@ -498,7 +498,7 @@ class CompSys(object):
             grav_accel: gravitational acceleration (9.81 m/s^2 * 3600^2 s^2/h^2 = 1.27e+008 m/h^2)
             cross_sec: cross section of compartment
             perimeter: perimeter section of compartment
-            width: widt section of compartment
+            width: width section of compartment
             fric_slope:
             dispersion: 'TRUE' with dispersion, 'FALSE' without dispersion
             dispersion_eq: dispersion equation

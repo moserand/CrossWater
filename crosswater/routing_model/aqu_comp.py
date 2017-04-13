@@ -238,7 +238,7 @@ class Compartments(object):
         Compartments are river reaches that are connected with advective links 
         and may have diffusive links alongside. One compartment exists of one or more
         riversegments and does not contain any river junctions.
-        The river network is at first divided at the river junctions, if the 
+        The river network is first divided at the river junctions, if the 
         desired number of compartments is higher, the river reaches are further 
         divided at the inlets of the largest tributaries.
     """

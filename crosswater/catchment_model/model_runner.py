@@ -278,6 +278,8 @@ class Worker(Thread):
             if 'C_back' in line:
                 cback_str = line.split()[1]
                 cback_new = str(float(cback_str)*area_ratio/self.ratio_area_cal)
+                if self.parameters['R_appl']==0:
+                    cback_new = str(0)
         return param.replace(cback_str, cback_new)
 
     def _make_time_varying_input(self, inputs):
