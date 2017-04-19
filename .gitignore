@@ -1,0 +1,16 @@
+model_toy/*
+*/__pycache__/*.*
+*/.DS_Store
+.cache
+*.wpr
+*.wpu
+*.ipynb
+
+data/Discharge/*
+data/Precipitation/*
+data/Temperature/*
+data/test/*
+substance_program/*
+aquasim/*
+
+
