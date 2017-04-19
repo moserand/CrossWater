@@ -25,4 +25,3 @@ Clone the repository and set the `PYTHONPATH`.
 * NumPy
 * pandas
 * PyTables
-* py.test for running tests
