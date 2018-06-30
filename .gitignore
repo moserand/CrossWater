@@ -1,3 +1,6 @@
+**/__pycache__/*
+data/*
+
 model_toy/*
 */__pycache__/*.*
 */.DS_Store
